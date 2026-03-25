@@ -1937,60 +1937,55 @@ def _render_m5():
                          "génère une composante 2X dans le spectre de vibration. L'amplitude 2X/1X augmente "
                          "avec la profondeur et atteint un maximum à la demi-vitesse critique.")
 
-    with tab_mis:
-        st.info("Désalignement parallèle/angulaire d'un accouplement — génère des harmoniques 2X, 3X")
+with tab_mis:
+        st.subheader("Désalignement (Misalignment)")
         col1, col2 = st.columns(2)
-        with col1:
-            mis_type = st.radio("Type désalignement", ["Parallèle", "Angulaire"], key="m5_mt")
-            mis_val  = st.slider("Magnitude (mm ou °)", 0.1, 2.0, 0.5, key="m5_mv")
-        with col2:
-            mis_node = st.slider("Nœud accouplement", 1, max(1,n_nodes-1), max(1,n_nodes//2), key="m5_mn")
-            speed_rpm_m = st.slider("Vitesse (RPM)", 500, 8000, 3000, key="m5_msp")
-        if st.button("↔️ Simuler le désalignement", type="primary", key="m5_mis"):
-            try:
-                mis_res = eng.run_misalignment(
-                    mis_type=mis_type.lower(),
-                    misalignment=mis_val * (1e-3 if mis_type=="Parallèle" else np.pi/180),
-                    n=mis_node,
-                    speed=float(speed_rpm_m)*np.pi/30
-                )
-                if mis_res:
-                    st.success("✅ Simulation réussie ! Voici la réponse dynamique :")
-                    try:
-                        # 1. Extraction robuste (comme pour l'onglet Temporel)
-                        t_arr = np.array(getattr(tr, 'time', getattr(tr, 't', np.linspace(0, 1, 500))))
-                        resp = np.array(getattr(tr, 'yout', getattr(tr, 'response', getattr(tr, 'disp', []))))
+        n_mis = col1.number_input("Nœud du désalignement", min_value=0, max_value=rotor.ndof//4 if rotor else 10, value=1, step=1, key="mis_n")
+        mis_val = col2.number_input("Valeur (m ou rad)", value=0.001, format="%.4f", key="mis_val")
+        mis_type = st.radio("Type", ["Parallèle", "Angulaire"], horizontal=True, key="mis_type")
+        speed_mis = st.number_input("Vitesse d'excitation (RPM)", min_value=1.0, value=150.0, step=10.0, key="mis_spd")
+        
+        if st.button("Simuler Désalignement", type="primary", key="btn_mis"):
+            with st.spinner("Simulation du désalignement..."):
+                tr = eng.run_misalignment(n=n_mis, misalignment=mis_val, mis_type=mis_type, speed=speed_mis)
+                
+            if tr:
+                st.success("✅ Simulation réussie ! Voici la réponse dynamique :")
+                try:
+                    # Extraction robuste
+                    t_arr = np.array(getattr(tr, 'time', getattr(tr, 't', np.linspace(0, 1, 500))))
+                    resp = np.array(getattr(tr, 'yout', getattr(tr, 'response', getattr(tr, 'disp', []))))
+                    
+                    if resp.ndim >= 2 and resp.shape[0] == len(t_arr) and resp.shape[1] != len(t_arr):
+                        resp = resp.T
                         
-                        if resp.ndim >= 2 and resp.shape[0] == len(t_arr) and resp.shape[1] != len(t_arr):
-                            resp = resp.T
-                            
-                        # 2. Ciblage de la sonde (Nœud 1 par défaut, ou utilise ta variable node_o)
-                        dof_x = 1 * 4  # Remplace 1 par node_o si tu as un menu de sélection
-                        safe_x = min(dof_x, resp.shape[0] - 1)
-                        safe_y = min(dof_x + 1, resp.shape[0] - 1)
+                    # Ciblage de la sonde sur le noeud du défaut
+                    dof_x = n_mis * 4
+                    safe_x = min(dof_x, resp.shape[0] - 1)
+                    safe_y = min(dof_x + 1, resp.shape[0] - 1)
+                    
+                    x_um = resp[safe_x, :] * 1e6
+                    y_um = resp[safe_y, :] * 1e6
+                    
+                    # Tracé Plotly
+                    col_p1, col_p2 = st.columns(2)
+                    with col_p1:
+                        fig_t = go.Figure()
+                        fig_t.add_trace(go.Scatter(x=t_arr, y=x_um, name="X", line=dict(color="#1F5C8B")))
+                        fig_t.add_trace(go.Scatter(x=t_arr, y=y_um, name="Y", line=dict(color="#C55A11")))
+                        fig_t.update_layout(title="Réponse Temporelle", xaxis_title="Temps (s)", yaxis_title="Déplacement (µm)")
+                        st.plotly_chart(fig_t, use_container_width=True)
                         
-                        x_um = resp[safe_x, :] * 1e6
-                        y_um = resp[safe_y, :] * 1e6
+                    with col_p2:
+                        fig_o = go.Figure()
+                        fig_o.add_trace(go.Scatter(x=x_um, y=y_um, mode="lines", name="Orbite", line=dict(color="#22863A")))
+                        fig_o.update_layout(title="Orbite déformée", xaxis_title="X (µm)", yaxis_title="Y (µm)", yaxis_scaleanchor="x")
+                        st.plotly_chart(fig_o, use_container_width=True)
                         
-                        # 3. Tracé sur mesure Plotly
-                        col_p1, col_p2 = st.columns(2)
-                        with col_p1:
-                            fig_t = go.Figure()
-                            fig_t.add_trace(go.Scatter(x=t_arr, y=x_um, name="X", line=dict(color="#1F5C8B")))
-                            fig_t.add_trace(go.Scatter(x=t_arr, y=y_um, name="Y", line=dict(color="#C55A11")))
-                            fig_t.update_layout(title="Réponse Temporelle du Défaut", xaxis_title="Temps (s)", yaxis_title="Déplacement (µm)")
-                            st.plotly_chart(fig_t, use_container_width=True)
-                            
-                        with col_p2:
-                            fig_o = go.Figure()
-                            fig_o.add_trace(go.Scatter(x=x_um, y=y_um, mode="lines", name="Orbite", line=dict(color="#22863A")))
-                            fig_o.update_layout(title="Orbite déformée", xaxis_title="X (µm)", yaxis_title="Y (µm)", yaxis_scaleanchor="x")
-                            st.plotly_chart(fig_o, use_container_width=True)
-                            
-                    except Exception as e:
-                        st.error(f"Erreur d'affichage graphique : {e}")
-                else:
-                    st.error(f"Erreur de calcul : {eng.last_error}")
+                except Exception as e:
+                    st.error(f"Erreur d'affichage graphique : {e}")
+            else:
+                st.error(f"Erreur de calcul : {eng.last_error}")
     with tab_rub:
          st.info("Contact rotor-stator — non-linéaire, peut générer des sous-harmoniques et du chaos")
             col1, col2 = st.columns(2)
