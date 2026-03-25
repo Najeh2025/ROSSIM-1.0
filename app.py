@@ -397,24 +397,42 @@ class SimulationEngine:
     def run_time_response(self, speed_rpm, F, t):
         speed_rad = float(speed_rpm) * np.pi / 30
         
-        # Tentative 1 : API ROSS avec les paramètres 'F' et 't'
-        try:
-            return self.rotor.run_time_response(speed=speed_rad, F=F, t=t)
-        except TypeError:
-            pass
-            
-        # Tentative 2 : API ROSS avec 'force' et 'time_range'
-        try:
-            return self.rotor.run_time_response(speed=speed_rad, force=F, time_range=t)
-        except TypeError:
-            pass
-            
-        # Tentative 3 : Arguments positionnels purs (au cas où les noms changent encore)
-        try:
-            return self.rotor.run_time_response(speed_rad, F, t)
-        except Exception as e:
-            self._err = f"Échec de la réponse temporelle : {str(e)}"
-            return None
+        last_err = ""
+        # On teste la matrice F telle quelle, puis sa transposée F.T
+        for force_mat in [F, F.T]:
+            # Tentative 1 : API ROSS récente ('F' et 't')
+            try:
+                return self.rotor.run_time_response(speed=speed_rad, F=force_mat, t=t)
+            except ValueError as e:
+                last_err = str(e)
+                if "same number of rows" in str(e):
+                    continue  # Si SciPy râle sur les dimensions, on essaie la transposée
+            except TypeError:
+                pass
+                
+            # Tentative 2 : Ancienne API ROSS ('force' et 'time_range')
+            try:
+                return self.rotor.run_time_response(speed=speed_rad, force=force_mat, time_range=t)
+            except ValueError as e:
+                last_err = str(e)
+                if "same number of rows" in str(e):
+                    continue
+            except TypeError:
+                pass
+                
+            # Tentative 3 : Arguments positionnels
+            try:
+                return self.rotor.run_time_response(speed_rad, force_mat, t)
+            except ValueError as e:
+                last_err = str(e)
+                if "same number of rows" in str(e):
+                    continue
+            except Exception as e:
+                self._err = f"Échec temporel : {str(e)}"
+                return None
+                
+        self._err = f"Échec de la réponse temporelle : {last_err}"
+        return None
 
     def run_crack(self, **kwargs):
         try:
