@@ -78,7 +78,9 @@ div[data-testid="stProgress"] > div > div { background:#1F5C8B !important; }
 # =============================================================================
 # CACHE MODULE-LEVEL (objets ROSS non sérialisables — CdC §2.12)
 # =============================================================================
-_CACHE: dict = {}
+if "_CACHE" not in st.session_state:
+    st.session_state["_CACHE"] = {}
+_CACHE = st.session_state["_CACHE"]
 
 # =============================================================================
 # MATÉRIAUX
