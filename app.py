@@ -1991,9 +1991,8 @@ def _render_m5():
                         st.error(f"Erreur d'affichage graphique : {e}")
                 else:
                     st.error(f"Erreur de calcul : {eng.last_error}")
-
     with tab_rub:
-            st.info("Contact rotor-stator — non-linéaire, peut générer des sous-harmoniques et du chaos")
+         st.info("Contact rotor-stator — non-linéaire, peut générer des sous-harmoniques et du chaos")
             col1, col2 = st.columns(2)
             with col1:
                 clearance = st.slider("Jeu rotor-stator (µm)", 10, 500, 100, key="m5_rc")
@@ -2051,7 +2050,7 @@ def _render_m5():
                     st.info("Quand le rotor touche le stator (jeu < amplitude vibratoire), "
                              "le contact génère des sous-harmoniques (0.5X, 0.33X) et peut "
                              "conduire à un comportement chaotique.")
-
+       
 
 # =============================================================================
 # PAGE : BIBLIOTHÈQUE ROSS
