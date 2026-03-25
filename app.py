@@ -474,14 +474,14 @@ class SimulationEngine:
         t_arr = np.linspace(0, 1.0, 500)
         
         try:
-            # API ROSS récente (sans le mot-clé coupling qui fait crasher)
+            # API ROSS récente (On utilise le vrai nom : misalignment_type)
             return self.rotor.run_misalignment(
                 node=[n], 
                 unbalance_magnitude=[1e-4], 
                 unbalance_phase=[0.0], 
                 t=t_arr,
                 mis_distance=misalignment, 
-                mis_type=m_type_en,
+                misalignment_type=m_type_en,  # <-- C'était ici le petit piège !
                 speed=speed
             )
         except Exception as e1:
@@ -1898,8 +1898,8 @@ def _render_m5():
                     st.success("✅ Simulation réussie ! Voici la réponse dynamique :")
                     try:
                         # 1. Extraction robuste (comme pour l'onglet Temporel)
-                        t_arr = np.array(getattr(tr, 'time', getattr(tr, 't', np.linspace(0, 1, 500))))
-                        resp = np.array(getattr(tr, 'yout', getattr(tr, 'response', getattr(tr, 'disp', []))))
+                        t_arr = np.array(getattr(crack_res, 'time', getattr(tr, 't', np.linspace(0, 1, 500))))
+                        resp = np.array(getattr(crack_res, 'yout', getattr(tr, 'response', getattr(tr, 'disp', []))))
                         
                         if resp.ndim >= 2 and resp.shape[0] == len(t_arr) and resp.shape[1] != len(t_arr):
                             resp = resp.T
@@ -2007,8 +2007,8 @@ def _render_m5():
                         st.success("✅ Simulation réussie ! Voici la réponse dynamique :")
                         try:
                             # 1. Extraction robuste (comme pour l'onglet Temporel)
-                            t_arr = np.array(getattr(tr, 'time', getattr(tr, 't', np.linspace(0, 1, 500))))
-                            resp = np.array(getattr(tr, 'yout', getattr(tr, 'response', getattr(tr, 'disp', []))))
+                            t_arr = np.array(getattr(rub_res, 'time', getattr(tr, 't', np.linspace(0, 1, 500))))
+                            resp = np.array(getattr(rub_res, 'yout', getattr(tr, 'response', getattr(tr, 'disp', []))))
                             
                             if resp.ndim >= 2 and resp.shape[0] == len(t_arr) and resp.shape[1] != len(t_arr):
                                 resp = resp.T
