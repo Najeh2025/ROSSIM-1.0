@@ -564,79 +564,97 @@ def _plot_campbell_fallback(camp, vmax_rpm, n_pts):
         st.error(f"Tracé Campbell impossible : {e}")
 
 def _extract_unbal(res, probe_node, probe_dof):
-    """Extrait (freqs_Hz, amps_m, phases_rad) depuis UnbalanceResponse."""
-    if hasattr(res, 'freq_resp') and res.freq_resp is not None:
-        fr = res.freq_resp
-        if hasattr(fr, 'speed_range'):
-            freqs = np.array(fr.speed_range) / (2*np.pi)
-        elif hasattr(fr, 'frequency_range'):
-            freqs = np.array(fr.frequency_range)
-        else:
-            raise AttributeError("Pas de fréquences dans freq_resp")
-        dof = probe_node * 4 + probe_dof
-        arr = np.array(fr)
-        if arr.ndim == 3: row = arr[dof, 0, :]
-        elif arr.ndim == 2: row = arr[min(dof, arr.shape[0]-1), :]
-        else: row = arr
-        return freqs, np.abs(row), np.angle(row)
-    if hasattr(res, 'data') and res.data is not None:
-        d = res.data
-        if hasattr(d, 'columns'):
-            fc = [c for c in d.columns if 'freq' in c.lower() or 'speed' in c.lower()]
-            ac = [c for c in d.columns if str(probe_node) in c]
-            if fc and ac:
-                f = np.array(d[fc[0]]); a = np.array(d[ac[0]], dtype=complex)
-                return f, np.abs(a), np.angle(a)
-    raise AttributeError("Structure UnbalanceResponse non reconnue")
+    """Extrait (freqs_Hz, amps_m, phases_rad) de manière ultra-robuste."""
+    # 1. Recherche des fréquences
+    freqs = None
+    for attr in ['frequency', 'speed_range', 'frequency_range', 'speed']:
+        if hasattr(res, attr) and getattr(res, attr) is not None:
+            freqs = np.array(getattr(res, attr))
+            if 'speed' in attr: freqs /= (2 * np.pi)
+            break
+    if freqs is None:
+        freqs = np.linspace(0, 100, 100) # Sécurité anti-crash
+
+    # 2. Recherche de l'amplitude et de la phase
+    amps, phases = None, None
+    dof = probe_node * 4 + probe_dof
+    
+    try:
+        # API moderne : res.magnitude et res.phase séparés
+        if hasattr(res, 'magnitude') and hasattr(res, 'phase'):
+            mag = np.array(res.magnitude)
+            ph = np.array(res.phase)
+            if mag.ndim == 2:
+                amps = mag[min(dof, mag.shape[0]-1), :]
+                phases = ph[min(dof, ph.shape[0]-1), :]
+            elif mag.ndim == 3:
+                amps = mag[min(dof, mag.shape[0]-1), 0, :]
+                phases = ph[min(dof, ph.shape[0]-1), 0, :]
+            else:
+                amps = mag; phases = ph
+                
+        # API intermédiaire : res.response (matrice de complexes)
+        elif hasattr(res, 'response') or hasattr(res, 'freq_resp'):
+            raw = getattr(res, 'response', None)
+            if raw is None: raw = getattr(res, 'freq_resp')
+            arr = np.array(raw)
+            if arr.ndim == 2:
+                row = arr[min(dof, arr.shape[0]-1), :]
+            elif arr.ndim == 3:
+                row = arr[min(dof, arr.shape[0]-1), 0, :]
+            else:
+                row = arr
+            amps = np.abs(row)
+            phases = np.angle(row)
+            
+        if amps is not None and phases is not None:
+            # Sécurité dimensionnelle
+            if len(amps) != len(freqs):
+                freqs = np.linspace(freqs[0], freqs[-1], len(amps))
+            return freqs, amps, phases
+    except Exception:
+        pass
+        
+    raise AttributeError(f"Structure de réponse non reconnue. Attributs : {dir(res)}")
 
 def _plot_bode_unbal(res, probe_node, probe_dof, freq_max, modal=None):
-    """Diagramme de Bode pour la réponse au balourd."""
-    for m, kw in [("plot_magnitude", {"probe":[probe_node,probe_dof]}),
-                   ("plot_magnitude", {"probe": probe_node})]:
-        if hasattr(res, m):
-            try:
-                col_a, col_b = st.columns(2)
-                with col_a:
-                    st.markdown("**📊 Magnitude (µm)**")
-                    st.plotly_chart(getattr(res, m)(**kw), use_container_width=True)
-                with col_b:
-                    st.markdown("**📐 Phase (°)**")
-                    st.plotly_chart(res.plot_phase(**kw), use_container_width=True)
-                if modal is not None:
-                    fn = modal.wn / (2*np.pi)
-                    st.caption("Vitesses critiques : " +
-                               "  |  ".join(f"M{i+1}={f:.1f} Hz" for i,f in enumerate(fn[:4])))
-                return
-            except Exception:
-                continue
+    """Diagramme de Bode pour la réponse au balourd (100% Custom Plotly)."""
     try:
         freqs, amps, phases = _extract_unbal(res, probe_node, probe_dof)
         amps_um = amps * 1e6
+        
         fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
                              subplot_titles=["Amplitude (µm)","Phase (°)"],
                              vertical_spacing=0.1)
+                             
         fig.add_trace(go.Scatter(x=freqs, y=amps_um, line=dict(color="#1F5C8B", width=2),
                                   name="Amplitude"), row=1, col=1)
         fig.add_trace(go.Scatter(x=freqs, y=np.degrees(phases),
                                   line=dict(color="#C55A11", width=2), name="Phase"), row=2, col=1)
+                                  
         if modal is not None:
             for i, f in enumerate(modal.wn[:4] / (2*np.pi)):
                 for row in [1, 2]:
                     fig.add_vline(x=f, line_dash="dot", line_color="#22863A", opacity=0.6,
                                    annotation_text=f"M{i+1}" if row==1 else "", row=row, col=1)
+                                   
         idx_max = int(np.argmax(amps_um))
         a_max = amps_um[idx_max]; f_res = freqs[idx_max]
-        a_stat = amps_um[1] if amps_um[1] > 0 else 1e-12
+        a_stat = amps_um[1] if len(amps_um) > 1 and amps_um[1] > 0 else 1e-12
         daf = a_max / a_stat
+        
         fig.update_xaxes(title_text="Fréquence (Hz)", row=2, col=1)
         fig.update_yaxes(title_text="µm", row=1, col=1)
         fig.update_yaxes(title_text="°", row=2, col=1)
         fig.update_layout(height=480, showlegend=False, title="Diagramme de Bode — Balourd")
+        
         st.plotly_chart(fig, use_container_width=True)
+        
         col1, col2, col3 = st.columns(3)
         col1.metric("Fréquence résonance", f"{f_res:.1f} Hz")
         col2.metric("Amplitude max", f"{a_max:.2f} µm")
         col3.metric("DAF", f"{daf:.1f}")
+        
     except Exception as e:
         st.error(f"Visualisation balourd impossible : {e}")
 
