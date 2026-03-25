@@ -612,12 +612,14 @@ def _plot_bode_unbal(res, probe_node, probe_dof, freq_max, modal=None):
         freqs, amps, phases = _extract_unbal(res, probe_node, probe_dof)
         amps_um = amps * 1e6
         
-        # --- NOUVEAU : ALERTE PHYSIQUE ---
+        # --- ALERTE PHYSIQUE ---
         if np.max(amps_um) < 1e-6:
-            st.warning("⚠️ L'amplitude mesurée est nulle. Vérifiez que votre sonde (Nœud probe) n'est pas placée sur un palier rigide !")
-        # ---------------------------------
+            st.warning("⚠️ L'amplitude mesurée est nulle ou presque. Vérifiez que votre sonde (Nœud probe) n'est pas placée sur un palier rigide !")
+        # -----------------------
         
         fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
+                             subplot_titles=["Amplitude (µm)","Phase (°)"],
+                             vertical_spacing=0.1)
                              
         fig.add_trace(go.Scatter(x=freqs, y=amps_um, line=dict(color="#1F5C8B", width=2),
                                   name="Amplitude"), row=1, col=1)
@@ -631,7 +633,8 @@ def _plot_bode_unbal(res, probe_node, probe_dof, freq_max, modal=None):
                                    annotation_text=f"M{i+1}" if row==1 else "", row=row, col=1)
                                    
         idx_max = int(np.argmax(amps_um))
-        a_max = amps_um[idx_max]; f_res = freqs[idx_max]
+        a_max = amps_um[idx_max]
+        f_res = freqs[idx_max]
         a_stat = amps_um[1] if len(amps_um) > 1 and amps_um[1] > 0 else 1e-12
         daf = a_max / a_stat
         
