@@ -443,12 +443,20 @@ class SimulationEngine:
         t_arr = np.linspace(0, 1.0, 500)
         
         try:
-            # Tentative 1 : API ROSS très récente (100% positionnel)
-            # Ordre strict exigé : n, depth_ratio, node, unbalance_mag, unbalance_phase, t
-            return self.rotor.run_crack(crack_node, crack_depth, crack_node, 1e-4, 0.0, t_arr)
+            # Tentative 1 : API ROSS récente (Paramètres nommés exacts)
+            return self.rotor.run_crack(
+                n=crack_node, 
+                depth_ratio=crack_depth, 
+                crack_model=model,        # Nouveau nom
+                node=crack_node,          # Noeud du balourd d'excitation
+                unbalance_magnitude=1e-4, 
+                unbalance_phase=0.0, 
+                speed=speed,              # Speed est requis ici
+                t=t_arr
+            )
         except Exception as e1:
             try:
-                # Tentative 2 : Ancienne API ROSS (Keyword arguments)
+                # Tentative 2 : Ancienne API ROSS
                 return self.rotor.run_crack(crack_node=crack_node, crack_depth=crack_depth, model=model, speed=speed)
             except Exception as e2:
                 self._err = f"API Récente: {str(e1)} | Ancienne API: {str(e2)}"
@@ -465,9 +473,18 @@ class SimulationEngine:
         t_arr = np.linspace(0, 1.0, 500)
         
         try:
-            # Tentative 1 : API ROSS très récente (100% positionnel)
-            # Ordre strict : n, misalignment, misalignment_type, node, unbalance_mag, phase, t
-            return self.rotor.run_misalignment(n, misalignment, m_type_en, n, 1e-4, 0.0, t_arr)
+            # Tentative 1 : API ROSS récente
+            return self.rotor.run_misalignment(
+                n=n,                      # Noeud du défaut
+                mis_distance=misalignment,# Nouveau nom de paramètre
+                mis_type=m_type_en,
+                coupling="flex",          # Requis par la nouvelle version
+                node=n,                   # Noeud du balourd
+                unbalance_magnitude=1e-4, 
+                unbalance_phase=0.0, 
+                speed=speed, 
+                t=t_arr
+            )
         except Exception as e1:
             try:
                 # Tentative 2 : Ancienne API
@@ -485,9 +502,19 @@ class SimulationEngine:
         t_arr = np.linspace(0, 1.0, 500)
         
         try:
-            # Tentative 1 : API ROSS très récente (100% positionnel)
-            # Ordre strict : n, contact_stiffness, distance, contact_damping, friction_coeff, node, mag, phase, t
-            return self.rotor.run_rubbing(n, k_contact, distance, 0.0, 0.1, n, 1e-4, 0.0, t_arr)
+            # Tentative 1 : API ROSS récente
+            return self.rotor.run_rubbing(
+                n=n, 
+                distance=distance, 
+                contact_stiffness=k_contact, 
+                contact_damping=0.0, 
+                friction_coeff=0.1, 
+                node=n, 
+                unbalance_magnitude=1e-4, 
+                unbalance_phase=0.0, 
+                speed=speed, 
+                t=t_arr
+            )
         except Exception as e1:
             try:
                 # Tentative 2 : Ancienne API
@@ -495,7 +522,6 @@ class SimulationEngine:
             except Exception as e2:
                 self._err = f"API Récente: {str(e1)} | Ancienne API: {str(e2)}"
                 return None
-
     @property
     def last_error(self): return self._err
 
