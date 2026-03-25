@@ -1992,65 +1992,65 @@ def _render_m5():
                 else:
                     st.error(f"Erreur de calcul : {eng.last_error}")
 
-    with tab_rub:
-        st.info("Contact rotor-stator — non-linéaire, peut générer des sous-harmoniques et du chaos")
-        col1, col2 = st.columns(2)
-        with col1:
-            clearance = st.slider("Jeu rotor-stator (µm)", 10, 500, 100, key="m5_rc")
-            stiffness = st.number_input("Raideur contact (N/m)", 1e5, 1e9, 1e7, format="%.2e", key="m5_rs")
-        with col2:
-            rub_node  = st.slider("Nœud contact", 1, max(1,n_nodes-1), max(1,n_nodes//2), key="m5_rn")
-            speed_rpm_r = st.slider("Vitesse (RPM)", 500, 8000, 3000, key="m5_rsp")
-        if st.button("🔥 Simuler le frottement", type="primary", key="m5_rub"):
-            try:
-                rub_res = eng.run_rubbing(
-                    radial_clearance=float(clearance)*1e-6,
-                    contact_stiffness=float(stiffness),
-                    n=rub_node,
-                    speed=float(speed_rpm_r)*np.pi/30
-                )
-                if rub_res:
-                    st.success("✅ Simulation réussie ! Voici la réponse dynamique :")
-                    try:
-                        # 1. Extraction robuste (comme pour l'onglet Temporel)
-                        t_arr = np.array(getattr(tr, 'time', getattr(tr, 't', np.linspace(0, 1, 500))))
-                        resp = np.array(getattr(tr, 'yout', getattr(tr, 'response', getattr(tr, 'disp', []))))
-                        
-                        if resp.ndim >= 2 and resp.shape[0] == len(t_arr) and resp.shape[1] != len(t_arr):
-                            resp = resp.T
+        with tab_rub:
+            st.info("Contact rotor-stator — non-linéaire, peut générer des sous-harmoniques et du chaos")
+            col1, col2 = st.columns(2)
+            with col1:
+                clearance = st.slider("Jeu rotor-stator (µm)", 10, 500, 100, key="m5_rc")
+                stiffness = st.number_input("Raideur contact (N/m)", 1e5, 1e9, 1e7, format="%.2e", key="m5_rs")
+            with col2:
+                rub_node  = st.slider("Nœud contact", 1, max(1,n_nodes-1), max(1,n_nodes//2), key="m5_rn")
+                speed_rpm_r = st.slider("Vitesse (RPM)", 500, 8000, 3000, key="m5_rsp")
+            if st.button("🔥 Simuler le frottement", type="primary", key="m5_rub"):
+                try:
+                    rub_res = eng.run_rubbing(
+                        radial_clearance=float(clearance)*1e-6,
+                        contact_stiffness=float(stiffness),
+                        n=rub_node,
+                        speed=float(speed_rpm_r)*np.pi/30
+                    )
+                    if rub_res:
+                        st.success("✅ Simulation réussie ! Voici la réponse dynamique :")
+                        try:
+                            # 1. Extraction robuste (comme pour l'onglet Temporel)
+                            t_arr = np.array(getattr(tr, 'time', getattr(tr, 't', np.linspace(0, 1, 500))))
+                            resp = np.array(getattr(tr, 'yout', getattr(tr, 'response', getattr(tr, 'disp', []))))
                             
-                        # 2. Ciblage de la sonde (Nœud 1 par défaut, ou utilise ta variable node_o)
-                        dof_x = 1 * 4  # Remplace 1 par node_o si tu as un menu de sélection
-                        safe_x = min(dof_x, resp.shape[0] - 1)
-                        safe_y = min(dof_x + 1, resp.shape[0] - 1)
-                        
-                        x_um = resp[safe_x, :] * 1e6
-                        y_um = resp[safe_y, :] * 1e6
-                        
-                        # 3. Tracé sur mesure Plotly
-                        col_p1, col_p2 = st.columns(2)
-                        with col_p1:
-                            fig_t = go.Figure()
-                            fig_t.add_trace(go.Scatter(x=t_arr, y=x_um, name="X", line=dict(color="#1F5C8B")))
-                            fig_t.add_trace(go.Scatter(x=t_arr, y=y_um, name="Y", line=dict(color="#C55A11")))
-                            fig_t.update_layout(title="Réponse Temporelle du Défaut", xaxis_title="Temps (s)", yaxis_title="Déplacement (µm)")
-                            st.plotly_chart(fig_t, use_container_width=True)
+                            if resp.ndim >= 2 and resp.shape[0] == len(t_arr) and resp.shape[1] != len(t_arr):
+                                resp = resp.T
+                                
+                            # 2. Ciblage de la sonde (Nœud 1 par défaut, ou utilise ta variable node_o)
+                            dof_x = 1 * 4  # Remplace 1 par node_o si tu as un menu de sélection
+                            safe_x = min(dof_x, resp.shape[0] - 1)
+                            safe_y = min(dof_x + 1, resp.shape[0] - 1)
                             
-                        with col_p2:
-                            fig_o = go.Figure()
-                            fig_o.add_trace(go.Scatter(x=x_um, y=y_um, mode="lines", name="Orbite", line=dict(color="#22863A")))
-                            fig_o.update_layout(title="Orbite déformée", xaxis_title="X (µm)", yaxis_title="Y (µm)", yaxis_scaleanchor="x")
-                            st.plotly_chart(fig_o, use_container_width=True)
+                            x_um = resp[safe_x, :] * 1e6
+                            y_um = resp[safe_y, :] * 1e6
                             
-                    except Exception as e:
-                        st.error(f"Erreur d'affichage graphique : {e}")
-                else:
-                    st.error(f"Erreur de calcul : {eng.last_error}")
-            except Exception as e:
-                st.warning(f"run_rubbing non disponible dans cette version ROSS : {e}")
-                st.info("Quand le rotor touche le stator (jeu < amplitude vibratoire), "
-                         "le contact génère des sous-harmoniques (0.5X, 0.33X) et peut "
-                         "conduire à un comportement chaotique.")
+                            # 3. Tracé sur mesure Plotly
+                            col_p1, col_p2 = st.columns(2)
+                            with col_p1:
+                                fig_t = go.Figure()
+                                fig_t.add_trace(go.Scatter(x=t_arr, y=x_um, name="X", line=dict(color="#1F5C8B")))
+                                fig_t.add_trace(go.Scatter(x=t_arr, y=y_um, name="Y", line=dict(color="#C55A11")))
+                                fig_t.update_layout(title="Réponse Temporelle du Défaut", xaxis_title="Temps (s)", yaxis_title="Déplacement (µm)")
+                                st.plotly_chart(fig_t, use_container_width=True)
+                                
+                            with col_p2:
+                                fig_o = go.Figure()
+                                fig_o.add_trace(go.Scatter(x=x_um, y=y_um, mode="lines", name="Orbite", line=dict(color="#22863A")))
+                                fig_o.update_layout(title="Orbite déformée", xaxis_title="X (µm)", yaxis_title="Y (µm)", yaxis_scaleanchor="x")
+                                st.plotly_chart(fig_o, use_container_width=True)
+                                
+                        except Exception as e:
+                            st.error(f"Erreur d'affichage graphique : {e}")
+                    else:
+                        st.error(f"Erreur de calcul : {eng.last_error}")
+                except Exception as e:
+                    st.warning(f"run_rubbing non disponible dans cette version ROSS : {e}")
+                    st.info("Quand le rotor touche le stator (jeu < amplitude vibratoire), "
+                             "le contact génère des sous-harmoniques (0.5X, 0.33X) et peut "
+                             "conduire à un comportement chaotique.")
 
 
 # =============================================================================
