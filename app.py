@@ -1937,7 +1937,7 @@ def _render_m5():
                          "génère une composante 2X dans le spectre de vibration. L'amplitude 2X/1X augmente "
                          "avec la profondeur et atteint un maximum à la demi-vitesse critique.")
 
-with tab_mis:
+    with tab_mis:
         st.subheader("Désalignement (Misalignment)")
         col1, col2 = st.columns(2)
         n_mis = col1.number_input("Nœud du désalignement", min_value=0, max_value=rotor.ndof//4 if rotor else 10, value=1, step=1, key="mis_n")
