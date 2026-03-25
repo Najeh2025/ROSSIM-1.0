@@ -1991,7 +1991,7 @@ def _render_m5():
                         st.error(f"Erreur d'affichage graphique : {e}")
                 else:
                     st.error(f"Erreur de calcul : {eng.last_error}")
-     with tab_rub:
+    with tab_rub:
          st.info("Contact rotor-stator — non-linéaire, peut générer des sous-harmoniques et du chaos")
             col1, col2 = st.columns(2)
             with col1:
