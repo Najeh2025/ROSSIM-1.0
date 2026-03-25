@@ -344,52 +344,55 @@ class SimulationEngine:
     def run_unbalance(self, nodes, mags, phases, fmax, n=500):
         freqs = np.linspace(0, float(fmax), int(n))
         
-        # Extraction des valeurs scalaires
+        # Extraction des valeurs (ROSS récent préfère des scalaires)
         n_val = nodes[0] if isinstance(nodes, list) else nodes
         m_val = mags[0] if isinstance(mags, list) else mags
         p_val = phases[0] if isinstance(phases, list) else phases
 
-        # On teste les différentes combinaisons de paramètres possibles dans ROSS
-        for kw in [{"frequency_range": freqs}, {"speed_range": freqs * 2 * np.pi}]:
-            try:
-                # 1ère tentative : API récente (unbalance_magnitude)
-                return self.rotor.run_unbalance_response(
-                    node=n_val, 
-                    unbalance_magnitude=m_val, 
-                    unbalance_phase=p_val, 
-                    **kw
-                )
-            except TypeError:
-                try:
-                    # 2ème tentative : API plus ancienne (magnitude)
-                    return self.rotor.run_unbalance_response(
-                        node=n_val, 
-                        magnitude=m_val, 
-                        phase=p_val, 
-                        **kw
-                    )
-                except Exception:
-                    continue # On passe à la combinaison frequency_range/speed_range suivante
-            except Exception as e:
-                self._err = str(e)
-                return None
-                
-        self._err = "Échec du calcul au balourd. Vérifiez votre version de ROSS."
-        return None
+        # Tentative 1 : ROSS récent (frequency)
+        try:
+            return self.rotor.run_unbalance_response(
+                node=n_val, unbalance_magnitude=m_val, unbalance_phase=p_val, frequency=freqs)
+        except TypeError:
+            pass
+
+        # Tentative 2 : ROSS intermédiaire (frequency_range)
+        try:
+            return self.rotor.run_unbalance_response(
+                node=n_val, magnitude=m_val, phase=p_val, frequency_range=freqs)
+        except TypeError:
+            pass
+            
+        # Tentative 3 : ROSS ancien (speed_range)
+        try:
+            return self.rotor.run_unbalance_response(
+                node=n_val, magnitude=m_val, phase=p_val, speed_range=freqs * 2 * np.pi)
+        except Exception as e:
+            self._err = f"Échec unbalance : {str(e)}"
+            return None
 
     def run_freq_response(self, inp, out, fmax, n=500):
+        # Les arguments inp/out sont ignorés ici car ROSS ne les utilise que pour le tracé (plot)
         freqs = np.linspace(0, float(fmax), int(n))
-        for method in ["run_freq_response", "run_frequency_response"]:
-            if not hasattr(self.rotor, method):
-                continue
-            for kw in [{"frequency_range": freqs}, {"speed_range": freqs * 2 * np.pi}]:
-                try:
-                    return getattr(self.rotor, method)(inp=inp, out=out, **kw)
-                except TypeError:
-                    continue
-                except Exception as e:
-                    self._err = str(e); return None
-        self._err = "run_freq_response non disponible"; return None
+        
+        # Tentative 1 : frequency
+        try:
+            return self.rotor.run_freq_response(frequency=freqs)
+        except TypeError:
+            pass
+            
+        # Tentative 2 : frequency_range
+        try:
+            return self.rotor.run_freq_response(frequency_range=freqs)
+        except TypeError:
+            pass
+            
+        # Tentative 3 : speed_range
+        try:
+            return self.rotor.run_freq_response(speed_range=freqs * 2 * np.pi)
+        except Exception as e:
+            self._err = f"Échec freq_response : {str(e)}"
+            return None
 
     def run_time_response(self, speed_rpm, F, t):
         try:
