@@ -1754,31 +1754,56 @@ def _render_m5():
                 F[dof_x, :] = 0.001 * omega**2 * np.cos(omega * t)
                 if dof_x+1 < rotor.ndof:
                     F[dof_x+1, :] = 0.001 * omega**2 * np.sin(omega * t)
-            with st.spinner("Intégration Newmark (peut prendre du temps)..."):
+                    
+            with st.spinner("Intégration temporelle (peut prendre du temps)..."):
                 tr = eng.run_time_response(speed_rpm, F, t)
+                
             if tr:
                 _CACHE["m5_time"] = tr
-                for m in ["plot_orbit", "plot_time_response"]:
-                    if hasattr(tr, m):
-                        try:
-                            st.plotly_chart(getattr(tr, m)(node=node_o),
-                                             use_container_width=True)
-                            break
-                        except TypeError:
-                            try:
-                                st.plotly_chart(getattr(tr, m)(), use_container_width=True)
-                                break
-                            except Exception: continue
-                # DFFT
-                for m in ["plot_dfft"]:
-                    if hasattr(tr, m):
-                        try:
-                            st.plotly_chart(tr.plot_dfft(probe=[node_o,0], rpm=speed_rpm),
-                                             use_container_width=True)
-                        except Exception: pass
+                try:
+                    # 1. Extraction robuste des données
+                    t_arr = getattr(tr, 'time', getattr(tr, 't', t))
+                    resp = getattr(tr, 'yout', getattr(tr, 'response', getattr(tr, 'disp', None)))
+                    
+                    if resp is None:
+                        raise ValueError("Données introuvables dans l'objet de réponse.")
+                        
+                    t_arr = np.array(t_arr)
+                    resp = np.array(resp)
+                    
+                    # 2. Transposition si matrice inversée
+                    if resp.ndim >= 2 and resp.shape[0] == len(t_arr) and resp.shape[1] != len(t_arr):
+                        resp = resp.T
+                        
+                    # 3. Extraction DDL X et Y pour la sonde
+                    safe_x = min(dof_x, resp.shape[0] - 1)
+                    safe_y = min(dof_x + 1, resp.shape[0] - 1)
+                    x_um = resp[safe_x, :] * 1e6
+                    y_um = resp[safe_y, :] * 1e6
+                    
+                    # 4. Affichage Plotly Sur Mesure
+                    col_p1, col_p2 = st.columns(2)
+                    with col_p1:
+                        fig_t = go.Figure()
+                        fig_t.add_trace(go.Scatter(x=t_arr, y=x_um, name="X", line=dict(color="#1F5C8B", width=1.5)))
+                        fig_t.add_trace(go.Scatter(x=t_arr, y=y_um, name="Y", line=dict(color="#C55A11", width=1.5)))
+                        fig_t.update_layout(title=f"Réponse Temporelle (Nœud {node_o})", 
+                                            xaxis_title="Temps (s)", yaxis_title="Déplacement (µm)", height=400)
+                        st.plotly_chart(fig_t, use_container_width=True)
+                        
+                    with col_p2:
+                        fig_o = go.Figure()
+                        fig_o.add_trace(go.Scatter(x=x_um, y=y_um, mode="lines", name="Orbite", 
+                                                   line=dict(color="#22863A", width=2)))
+                        fig_o.update_layout(title=f"Orbite (Nœud {node_o})", 
+                                            xaxis_title="X (µm)", yaxis_title="Y (µm)", 
+                                            yaxis_scaleanchor="x", height=400)
+                        st.plotly_chart(fig_o, use_container_width=True)
+                        
+                except Exception as e:
+                    st.error(f"Le calcul a réussi, mais l'extraction graphique est impossible : {e}")
             else:
                 st.error(f"Erreur : {eng.last_error}")
-
     with tab_crack:
         st.info("Modèle de fissure transversale (Gasch/Mayes) — variation de raideur oscillante → harmonique 2X caractéristique")
         col1, col2 = st.columns(2)
