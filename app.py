@@ -344,33 +344,37 @@ class SimulationEngine:
     def run_unbalance(self, nodes, mags, phases, fmax, n=500):
         freqs = np.linspace(0, float(fmax), int(n))
         
-        # Extraction des valeurs simples (API ROSS récente)
-        n_val = nodes[0] if isinstance(nodes, list) and len(nodes) == 1 else nodes
-        m_val = mags[0] if isinstance(mags, list) and len(mags) == 1 else mags
-        p_val = phases[0] if isinstance(phases, list) and len(phases) == 1 else phases
+        # Extraction des valeurs scalaires
+        n_val = nodes[0] if isinstance(nodes, list) else nodes
+        m_val = mags[0] if isinstance(mags, list) else mags
+        p_val = phases[0] if isinstance(phases, list) else phases
 
-        last_err = ""
+        # On teste les différentes combinaisons de paramètres possibles dans ROSS
         for kw in [{"frequency_range": freqs}, {"speed_range": freqs * 2 * np.pi}]:
-            # Tentative 1 : API ROSS récente
             try:
+                # 1ère tentative : API récente (unbalance_magnitude)
                 return self.rotor.run_unbalance_response(
-                    node=n_val, unbalance_magnitude=m_val, unbalance_phase=p_val, **kw)
-            except TypeError as e:
-                last_err = str(e)
-                # Tentative 2 : Ancienne API ROSS (fallback)
-                if "unexpected keyword argument" in str(e):
-                    try:
-                        return self.rotor.run_unbalance_response(
-                            node=n_val, magnitude=m_val, phase=p_val, **kw)
-                    except Exception as e2:
-                        self._err = str(e2)
-                        return None
-                continue
+                    node=n_val, 
+                    unbalance_magnitude=m_val, 
+                    unbalance_phase=p_val, 
+                    **kw
+                )
+            except TypeError:
+                try:
+                    # 2ème tentative : API plus ancienne (magnitude)
+                    return self.rotor.run_unbalance_response(
+                        node=n_val, 
+                        magnitude=m_val, 
+                        phase=p_val, 
+                        **kw
+                    )
+                except Exception:
+                    continue # On passe à la combinaison frequency_range/speed_range suivante
             except Exception as e:
                 self._err = str(e)
                 return None
                 
-        self._err = f"run_unbalance_response a échoué. Erreur de type : {last_err}"
+        self._err = "Échec du calcul au balourd. Vérifiez votre version de ROSS."
         return None
 
     def run_freq_response(self, inp, out, fmax, n=500):
