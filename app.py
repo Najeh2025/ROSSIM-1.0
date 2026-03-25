@@ -343,15 +343,26 @@ class SimulationEngine:
 
     def run_unbalance(self, nodes, mags, phases, fmax, n=500):
         freqs = np.linspace(0, float(fmax), int(n))
+        
+        # Extraction des valeurs simples si ce sont des listes à 1 élément (API ROSS récente)
+        n_val = nodes[0] if isinstance(nodes, list) and len(nodes) == 1 else nodes
+        m_val = mags[0] if isinstance(mags, list) and len(mags) == 1 else mags
+        p_val = phases[0] if isinstance(phases, list) and len(phases) == 1 else phases
+
+        last_err = ""
         for kw in [{"frequency_range": freqs}, {"speed_range": freqs * 2 * np.pi}]:
             try:
                 return self.rotor.run_unbalance_response(
-                    node=nodes, magnitude=mags, phase=phases, **kw)
-            except TypeError:
+                    node=n_val, magnitude=m_val, phase=p_val, **kw)
+            except TypeError as e:
+                last_err = str(e)
                 continue
             except Exception as e:
-                self._err = str(e); return None
-        self._err = "run_unbalance_response non disponible"; return None
+                self._err = str(e)
+                return None
+                
+        self._err = f"run_unbalance_response a échoué. Erreur de type : {last_err}"
+        return None
 
     def run_freq_response(self, inp, out, fmax, n=500):
         freqs = np.linspace(0, float(fmax), int(n))
