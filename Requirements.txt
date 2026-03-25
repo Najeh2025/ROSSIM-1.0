@@ -1,0 +1,22 @@
+# ROSSim Online — requirements.txt
+# Compatible Streamlit Cloud, Docker, installation locale
+
+# ── Calcul rotordynamique ──
+ross-rotordynamics
+
+# ── Interface web ──
+streamlit>=1.28.0
+
+# ── Calcul scientifique ──
+numpy>=1.24.0
+scipy>=1.10.0
+pandas>=2.0.0
+
+# ── Visualisation ──
+plotly>=5.17.0
+
+# ── Assistant IA (ROSS GPT) ──
+anthropic>=0.20.0
+
+# ── Export ──
+# reportlab>=4.0.0   # PDF avancé — activer si nécessaire
