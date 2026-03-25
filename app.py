@@ -1898,8 +1898,8 @@ def _render_m5():
                     st.success("✅ Simulation réussie ! Voici la réponse dynamique :")
                     try:
                         # 1. Extraction robuste (comme pour l'onglet Temporel)
-                        t_arr = np.array(getattr(crack_res, 'time', getattr(tr, 't', np.linspace(0, 1, 500))))
-                        resp = np.array(getattr(crack_res, 'yout', getattr(tr, 'response', getattr(tr, 'disp', []))))
+                        t_arr = np.array(getattr(crack_res, 'time', getattr(crack_res, 't', np.linspace(0, 1, 500))))
+                        resp = np.array(getattr(crack_res, 'yout', getattr(crack_res, 'response', getattr(crack_res, 'disp', []))))
                         
                         if resp.ndim >= 2 and resp.shape[0] == len(t_arr) and resp.shape[1] != len(t_arr):
                             resp = resp.T
@@ -2007,8 +2007,8 @@ def _render_m5():
                         st.success("✅ Simulation réussie ! Voici la réponse dynamique :")
                         try:
                             # 1. Extraction robuste (comme pour l'onglet Temporel)
-                            t_arr = np.array(getattr(rub_res, 'time', getattr(tr, 't', np.linspace(0, 1, 500))))
-                            resp = np.array(getattr(rub_res, 'yout', getattr(tr, 'response', getattr(tr, 'disp', []))))
+                            t_arr = np.array(getattr(rub_res, 'time', getattr(rub_res, 't', np.linspace(0, 1, 500))))
+                            resp = np.array(getattr(rub_res, 'yout', getattr(rub_res, 'response', getattr(rub_res, 'disp', []))))
                             
                             if resp.ndim >= 2 and resp.shape[0] == len(t_arr) and resp.shape[1] != len(t_arr):
                                 resp = resp.T
