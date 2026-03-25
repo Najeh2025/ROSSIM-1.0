@@ -471,28 +471,28 @@ class SimulationEngine:
         
         m_type_fr = kwargs.get('mis_type', 'parallèle').lower()
         m_type_en = "parallel" if "parall" in m_type_fr else "angular"
-        
         t_arr = np.linspace(0, 1.0, 500)
         
         try:
-            # Tentative 1 : API ROSS récente
+            # API ROSS récente (sans le mot-clé coupling qui fait crasher)
             return self.rotor.run_misalignment(
-                n=n, 
+                node=[n], 
+                unbalance_magnitude=[1e-4], 
+                unbalance_phase=[0.0], 
+                t=t_arr,
                 mis_distance=misalignment, 
                 mis_type=m_type_en,
-                coupling="flex",
-                node=[n],                   # <-- LISTE exigée
-                unbalance_magnitude=[1e-4], # <-- LISTE exigée
-                unbalance_phase=[0.0],      # <-- LISTE exigée
-                speed=speed, 
-                t=t_arr
+                speed=speed
             )
         except Exception as e1:
             try:
-                # Tentative 2 : Ancienne API
-                return self.rotor.run_misalignment(n=n, misalignment=misalignment, misalignment_type=m_type_en, speed=speed)
+                # Ancienne API 
+                return self.rotor.run_misalignment(
+                    node=[n], unbalance_magnitude=[1e-4], unbalance_phase=[0.0], t=t_arr,
+                    misalignment=misalignment, misalignment_type=m_type_en, speed=speed
+                )
             except Exception as e2:
-                self._err = f"API Récente: {str(e1)} | Ancienne API: {str(e2)}"
+                self._err = f"Échec Désalignement: {str(e2)}"
                 return None
 
     def run_rubbing(self, **kwargs):
@@ -1895,14 +1895,42 @@ def _render_m5():
                     model=model_type.lower()
                 )
                 if crack_res:
-                    for m in ["plot_dfft", "plot_orbit", "plot"]:
-                        if hasattr(crack_res, m):
-                            try:
-                                st.plotly_chart(getattr(crack_res, m)(), use_container_width=True)
-                                break
-                            except Exception: continue
+                    st.success("✅ Simulation réussie ! Voici la réponse dynamique :")
+                    try:
+                        # 1. Extraction robuste (comme pour l'onglet Temporel)
+                        t_arr = np.array(getattr(tr, 'time', getattr(tr, 't', np.linspace(0, 1, 500))))
+                        resp = np.array(getattr(tr, 'yout', getattr(tr, 'response', getattr(tr, 'disp', []))))
+                        
+                        if resp.ndim >= 2 and resp.shape[0] == len(t_arr) and resp.shape[1] != len(t_arr):
+                            resp = resp.T
+                            
+                        # 2. Ciblage de la sonde (Nœud 1 par défaut, ou utilise ta variable node_o)
+                        dof_x = 1 * 4  # Remplace 1 par node_o si tu as un menu de sélection
+                        safe_x = min(dof_x, resp.shape[0] - 1)
+                        safe_y = min(dof_x + 1, resp.shape[0] - 1)
+                        
+                        x_um = resp[safe_x, :] * 1e6
+                        y_um = resp[safe_y, :] * 1e6
+                        
+                        # 3. Tracé sur mesure Plotly
+                        col_p1, col_p2 = st.columns(2)
+                        with col_p1:
+                            fig_t = go.Figure()
+                            fig_t.add_trace(go.Scatter(x=t_arr, y=x_um, name="X", line=dict(color="#1F5C8B")))
+                            fig_t.add_trace(go.Scatter(x=t_arr, y=y_um, name="Y", line=dict(color="#C55A11")))
+                            fig_t.update_layout(title="Réponse Temporelle du Défaut", xaxis_title="Temps (s)", yaxis_title="Déplacement (µm)")
+                            st.plotly_chart(fig_t, use_container_width=True)
+                            
+                        with col_p2:
+                            fig_o = go.Figure()
+                            fig_o.add_trace(go.Scatter(x=x_um, y=y_um, mode="lines", name="Orbite", line=dict(color="#22863A")))
+                            fig_o.update_layout(title="Orbite déformée", xaxis_title="X (µm)", yaxis_title="Y (µm)", yaxis_scaleanchor="x")
+                            st.plotly_chart(fig_o, use_container_width=True)
+                            
+                    except Exception as e:
+                        st.error(f"Erreur d'affichage graphique : {e}")
                 else:
-                    st.error(f"Erreur : {eng.last_error}")
+                    st.error(f"Erreur de calcul : {eng.last_error}")
             except Exception as e:
                 st.warning(f"run_crack non disponible dans cette version ROSS : {e}")
                 st.info("**Simulation de référence :** Une fissure de profondeur α=0.3 sur un arbre Ø50mm "
@@ -1927,16 +1955,42 @@ def _render_m5():
                     speed=float(speed_rpm_m)*np.pi/30
                 )
                 if mis_res:
-                    for m in ["plot_dfft", "plot_orbit", "plot"]:
-                        if hasattr(mis_res, m):
-                            try:
-                                st.plotly_chart(getattr(mis_res, m)(), use_container_width=True)
-                                break
-                            except Exception: continue
+                    st.success("✅ Simulation réussie ! Voici la réponse dynamique :")
+                    try:
+                        # 1. Extraction robuste (comme pour l'onglet Temporel)
+                        t_arr = np.array(getattr(tr, 'time', getattr(tr, 't', np.linspace(0, 1, 500))))
+                        resp = np.array(getattr(tr, 'yout', getattr(tr, 'response', getattr(tr, 'disp', []))))
+                        
+                        if resp.ndim >= 2 and resp.shape[0] == len(t_arr) and resp.shape[1] != len(t_arr):
+                            resp = resp.T
+                            
+                        # 2. Ciblage de la sonde (Nœud 1 par défaut, ou utilise ta variable node_o)
+                        dof_x = 1 * 4  # Remplace 1 par node_o si tu as un menu de sélection
+                        safe_x = min(dof_x, resp.shape[0] - 1)
+                        safe_y = min(dof_x + 1, resp.shape[0] - 1)
+                        
+                        x_um = resp[safe_x, :] * 1e6
+                        y_um = resp[safe_y, :] * 1e6
+                        
+                        # 3. Tracé sur mesure Plotly
+                        col_p1, col_p2 = st.columns(2)
+                        with col_p1:
+                            fig_t = go.Figure()
+                            fig_t.add_trace(go.Scatter(x=t_arr, y=x_um, name="X", line=dict(color="#1F5C8B")))
+                            fig_t.add_trace(go.Scatter(x=t_arr, y=y_um, name="Y", line=dict(color="#C55A11")))
+                            fig_t.update_layout(title="Réponse Temporelle du Défaut", xaxis_title="Temps (s)", yaxis_title="Déplacement (µm)")
+                            st.plotly_chart(fig_t, use_container_width=True)
+                            
+                        with col_p2:
+                            fig_o = go.Figure()
+                            fig_o.add_trace(go.Scatter(x=x_um, y=y_um, mode="lines", name="Orbite", line=dict(color="#22863A")))
+                            fig_o.update_layout(title="Orbite déformée", xaxis_title="X (µm)", yaxis_title="Y (µm)", yaxis_scaleanchor="x")
+                            st.plotly_chart(fig_o, use_container_width=True)
+                            
+                    except Exception as e:
+                        st.error(f"Erreur d'affichage graphique : {e}")
                 else:
-                    st.error(f"Erreur : {eng.last_error}")
-            except Exception as e:
-                st.warning(f"run_misalignment non disponible dans cette version ROSS : {e}")
+                    st.error(f"Erreur de calcul : {eng.last_error}")
 
     with tab_rub:
         st.info("Contact rotor-stator — non-linéaire, peut générer des sous-harmoniques et du chaos")
@@ -1956,14 +2010,42 @@ def _render_m5():
                     speed=float(speed_rpm_r)*np.pi/30
                 )
                 if rub_res:
-                    for m in ["plot_dfft", "plot_orbit", "plot"]:
-                        if hasattr(rub_res, m):
-                            try:
-                                st.plotly_chart(getattr(rub_res, m)(), use_container_width=True)
-                                break
-                            except Exception: continue
+                    st.success("✅ Simulation réussie ! Voici la réponse dynamique :")
+                    try:
+                        # 1. Extraction robuste (comme pour l'onglet Temporel)
+                        t_arr = np.array(getattr(tr, 'time', getattr(tr, 't', np.linspace(0, 1, 500))))
+                        resp = np.array(getattr(tr, 'yout', getattr(tr, 'response', getattr(tr, 'disp', []))))
+                        
+                        if resp.ndim >= 2 and resp.shape[0] == len(t_arr) and resp.shape[1] != len(t_arr):
+                            resp = resp.T
+                            
+                        # 2. Ciblage de la sonde (Nœud 1 par défaut, ou utilise ta variable node_o)
+                        dof_x = 1 * 4  # Remplace 1 par node_o si tu as un menu de sélection
+                        safe_x = min(dof_x, resp.shape[0] - 1)
+                        safe_y = min(dof_x + 1, resp.shape[0] - 1)
+                        
+                        x_um = resp[safe_x, :] * 1e6
+                        y_um = resp[safe_y, :] * 1e6
+                        
+                        # 3. Tracé sur mesure Plotly
+                        col_p1, col_p2 = st.columns(2)
+                        with col_p1:
+                            fig_t = go.Figure()
+                            fig_t.add_trace(go.Scatter(x=t_arr, y=x_um, name="X", line=dict(color="#1F5C8B")))
+                            fig_t.add_trace(go.Scatter(x=t_arr, y=y_um, name="Y", line=dict(color="#C55A11")))
+                            fig_t.update_layout(title="Réponse Temporelle du Défaut", xaxis_title="Temps (s)", yaxis_title="Déplacement (µm)")
+                            st.plotly_chart(fig_t, use_container_width=True)
+                            
+                        with col_p2:
+                            fig_o = go.Figure()
+                            fig_o.add_trace(go.Scatter(x=x_um, y=y_um, mode="lines", name="Orbite", line=dict(color="#22863A")))
+                            fig_o.update_layout(title="Orbite déformée", xaxis_title="X (µm)", yaxis_title="Y (µm)", yaxis_scaleanchor="x")
+                            st.plotly_chart(fig_o, use_container_width=True)
+                            
+                    except Exception as e:
+                        st.error(f"Erreur d'affichage graphique : {e}")
                 else:
-                    st.error(f"Erreur : {eng.last_error}")
+                    st.error(f"Erreur de calcul : {eng.last_error}")
             except Exception as e:
                 st.warning(f"run_rubbing non disponible dans cette version ROSS : {e}")
                 st.info("Quand le rotor touche le stator (jeu < amplitude vibratoire), "
