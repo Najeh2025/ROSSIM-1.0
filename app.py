@@ -1988,7 +1988,7 @@ def _render_m5():
                 st.error(f"Erreur de calcul : {eng.last_error}")
     with tab_rub:
          st.info("Contact rotor-stator — non-linéaire, peut générer des sous-harmoniques et du chaos")
-            col1, col2 = st.columns(2)
+         col1, col2 = st.columns(2)
             with col1:
                 clearance = st.slider("Jeu rotor-stator (µm)", 10, 500, 100, key="m5_rc")
                 stiffness = st.number_input("Raideur contact (N/m)", 1e5, 1e9, 1e7, format="%.2e", key="m5_rs")
