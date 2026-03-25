@@ -564,55 +564,59 @@ def _plot_campbell_fallback(camp, vmax_rpm, n_pts):
         st.error(f"Tracé Campbell impossible : {e}")
 
 def _extract_unbal(res, probe_node, probe_dof):
-    """Extrait les données (Version 100% blindée contre les anomalies de dimension)."""
+    """Extrait les données en fournissant correctement l'argument 'probe' exigé par ROSS."""
     
-    # --- Fonction utilitaire pour lire les attributs ROSS ---
-    def get_val(obj, attr_name):
-        if hasattr(obj, attr_name):
-            v = getattr(obj, attr_name)
-            return v() if callable(v) else v  # Exécute si c'est une méthode cachée
-        return None
-
     # 1. Extraction des fréquences
-    freqs = get_val(res, 'speed_range')
-    if freqs is not None:
-        freqs = np.array(freqs) / (2 * np.pi)
+    if hasattr(res, 'speed_range'):
+        freqs = np.array(res.speed_range) / (2 * np.pi)
+    elif hasattr(res, 'frequency'):
+        freqs = np.array(res.frequency)
+    elif hasattr(res, 'frequency_range'):
+        freqs = np.array(res.frequency_range)
     else:
-        freqs = get_val(res, 'frequency')
-        if freqs is not None: 
-            freqs = np.array(freqs)
-        else: 
-            freqs = np.linspace(0, 100, 100) # Fallback ultime
+        freqs = np.linspace(0, 100, 100) # Fallback
 
-    freqs = np.atleast_1d(freqs) # Empêche d'avoir un array 0-D
-
-    # 2. Extraction des grandeurs
-    mag = get_val(res, 'data_magnitude')
-    ph = get_val(res, 'data_phase')
+    freqs = np.atleast_1d(freqs)
     
-    if mag is not None and ph is not None:
-        mag = np.array(mag)
-        ph = np.array(ph)
-    else:
-        resp = get_val(res, 'forced_resp')
-        if resp is not None:
-            arr = np.array(resp)
-            mag = np.abs(arr)
-            ph = np.angle(arr)
-        else:
-            raise AttributeError("Impossible de trouver les données vibratoires.")
+    # Format attendu par ROSS pour la sonde : [nœud, direction]
+    probe_target = [probe_node, probe_dof]
 
-    # Protection vitale : garantit qu'on a au moins 1 dimension (empêche l'erreur 'tuple index')
+    # 2. PLAN A : API ROSS Moderne (utilisation des méthodes avec 'probe')
+    if hasattr(res, 'data_magnitude') and callable(res.data_magnitude):
+        try:
+            # On demande directement à ROSS les données filtrées pour CETTE sonde
+            mag = np.array(res.data_magnitude(probe=probe_target))
+            ph = np.array(res.data_phase(probe=probe_target))
+            
+            amps = np.atleast_1d(mag).flatten()
+            phases = np.atleast_1d(ph).flatten()
+            
+            min_len = min(len(amps), len(freqs))
+            return freqs[:min_len], amps[:min_len], phases[:min_len]
+        except Exception:
+            pass # Si ça échoue (ex: format de probe refusé), on passe au Plan B
+
+    # 3. PLAN B : Ancienne API (extraction manuelle depuis la matrice globale)
+    if hasattr(res, 'forced_resp'):
+        arr = np.array(res.forced_resp)
+    elif hasattr(res, 'response'):
+        arr = np.array(res.response)
+    else:
+        raise AttributeError("Données vibratoires introuvables (ni data_magnitude, ni forced_resp).")
+
+    mag = np.abs(arr)
+    ph = np.angle(arr)
+
     mag = np.atleast_1d(mag)
     ph = np.atleast_1d(ph)
 
-    # 3. Transposition si ROSS a inversé la matrice
+    # Pivot de la matrice si nécessaire
     if mag.ndim >= 2:
         if mag.shape[0] == len(freqs) and mag.shape[1] != len(freqs):
             mag = mag.T
             ph = ph.T
 
-    # 4. Ciblage du bon Degré de Liberté (DDL)
+    # Calcul du DDL global
     dof = probe_node * 4 + probe_dof
     safe_dof = 0
     if mag.ndim > 1:
@@ -625,22 +629,13 @@ def _extract_unbal(res, probe_node, probe_dof):
         amps = mag[safe_dof, :]
         phases = ph[safe_dof, :]
     else:
-        amps = mag
-        phases = ph
+        amps = mag; phases = ph
 
-    # Aplatir proprement pour l'affichage graphique
     amps = np.atleast_1d(amps).flatten()
     phases = np.atleast_1d(phases).flatten()
 
-    # Dernière sécurité pour garantir que X et Y ont la même taille pour Plotly
-    if len(amps) != len(freqs):
-        min_len = min(len(amps), len(freqs))
-        amps = amps[:min_len]
-        phases = phases[:min_len]
-        freqs = freqs[:min_len]
-
-    return freqs, amps, phases
-
+    min_len = min(len(amps), len(freqs))
+    return freqs[:min_len], amps[:min_len], phases[:min_len]
     raise AttributeError("Impossible d'extraire les données avec les attributs disponibles.")
 
 def _plot_bode_unbal(res, probe_node, probe_dof, freq_max, modal=None):
