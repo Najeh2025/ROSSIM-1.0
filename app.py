@@ -437,26 +437,28 @@ class SimulationEngine:
     def run_crack(self, **kwargs):
         crack_node = kwargs.get('crack_node', 1)
         crack_depth = kwargs.get('crack_depth', 0.1)
-        model = kwargs.get('model', 'gasch')
+        
+        # Sécurité absolue : on force le format attendu par ROSS ("gasch" ou "mayes")
+        model = str(kwargs.get('model', 'gasch')).lower().strip()
         speed = kwargs.get('speed', 150.0)
         
         t_arr = np.linspace(0, 1.0, 500)
         
         try:
-            # Tentative 1 : API ROSS récente (Paramètres nommés exacts)
+            # Tentative 1 : API ROSS récente
             return self.rotor.run_crack(
                 n=crack_node, 
                 depth_ratio=crack_depth, 
-                crack_model=model,        # Nouveau nom
-                node=crack_node,          # Noeud du balourd d'excitation
-                unbalance_magnitude=1e-4, 
-                unbalance_phase=0.0, 
-                speed=speed,              # Speed est requis ici
+                model=model,                # Le nom exact du paramètre est revenu à 'model'
+                node=[crack_node],          # <-- LISTE exigée
+                unbalance_magnitude=[1e-4], # <-- LISTE exigée
+                unbalance_phase=[0.0],      # <-- LISTE exigée
+                speed=speed, 
                 t=t_arr
             )
         except Exception as e1:
             try:
-                # Tentative 2 : Ancienne API ROSS
+                # Tentative 2 : Ancienne API
                 return self.rotor.run_crack(crack_node=crack_node, crack_depth=crack_depth, model=model, speed=speed)
             except Exception as e2:
                 self._err = f"API Récente: {str(e1)} | Ancienne API: {str(e2)}"
@@ -475,13 +477,13 @@ class SimulationEngine:
         try:
             # Tentative 1 : API ROSS récente
             return self.rotor.run_misalignment(
-                n=n,                      # Noeud du défaut
-                mis_distance=misalignment,# Nouveau nom de paramètre
+                n=n, 
+                mis_distance=misalignment, 
                 mis_type=m_type_en,
-                coupling="flex",          # Requis par la nouvelle version
-                node=n,                   # Noeud du balourd
-                unbalance_magnitude=1e-4, 
-                unbalance_phase=0.0, 
+                coupling="flex",
+                node=[n],                   # <-- LISTE exigée
+                unbalance_magnitude=[1e-4], # <-- LISTE exigée
+                unbalance_phase=[0.0],      # <-- LISTE exigée
                 speed=speed, 
                 t=t_arr
             )
@@ -509,9 +511,9 @@ class SimulationEngine:
                 contact_stiffness=k_contact, 
                 contact_damping=0.0, 
                 friction_coeff=0.1, 
-                node=n, 
-                unbalance_magnitude=1e-4, 
-                unbalance_phase=0.0, 
+                node=[n],                   # <-- LISTE exigée
+                unbalance_magnitude=[1e-4], # <-- LISTE exigée
+                unbalance_phase=[0.0],      # <-- LISTE exigée
                 speed=speed, 
                 t=t_arr
             )
