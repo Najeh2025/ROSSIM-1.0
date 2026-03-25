@@ -435,86 +435,100 @@ class SimulationEngine:
         return None
 
     def run_crack(self, **kwargs):
-        speed = kwargs.get('speed', 150.0)
         crack_node = kwargs.get('crack_node', 1)
         crack_depth = kwargs.get('crack_depth', 0.1)
+        model = kwargs.get('model', 'gasch')
+        speed = kwargs.get('speed', 150.0) # Réservé pour l'ancienne API
         
-        # Paramètres d'excitation par défaut pour ROSS récent
         t_arr = np.linspace(0, 1.0, 500)
         
+        # Tentative 1 : API ROSS très récente (SANS 'speed')
         try:
-            # Tentative 1 : Nouvelle API (avec balourd d'excitation intégré)
             return self.rotor.run_crack(
                 n=crack_node, 
                 depth_ratio=crack_depth, 
-                speed=speed,
+                model=model,
                 node=crack_node, 
                 unbalance_magnitude=1e-4, 
                 unbalance_phase=0.0, 
                 t=t_arr
             )
         except TypeError:
-            try:
-                # Tentative 2 : Ancienne API ROSS
-                return self.rotor.run_crack(**kwargs)
-            except Exception as e:
-                self._err = str(e); return None
+            pass
+
+        # Tentative 2 : Ancienne API ROSS (fallback)
+        try:
+            return self.rotor.run_crack(**kwargs)
         except Exception as e:
-            self._err = str(e); return None
+            self._err = f"Échec fissure : {str(e)}"
+            return None
 
     def run_misalignment(self, **kwargs):
-        speed = kwargs.get('speed', 150.0)
         n = kwargs.get('n', 1)
         misalignment = kwargs.get('misalignment', 0.001)
+        speed = kwargs.get('speed', 150.0)
+        
+        # Traduction vitale pour ROSS (Streamlit envoie "parallèle" ou "angulaire")
+        m_type_fr = kwargs.get('mis_type', 'parallèle').lower()
+        m_type_en = "parallel" if "parall" in m_type_fr else "angular"
         
         t_arr = np.linspace(0, 1.0, 500)
         
+        # Tentative 1 : API ROSS très récente
         try:
             return self.rotor.run_misalignment(
                 n=n, 
                 misalignment=misalignment, 
-                speed=speed,
+                misalignment_type=m_type_en,
                 node=n, 
                 unbalance_magnitude=1e-4, 
                 unbalance_phase=0.0, 
                 t=t_arr
             )
         except TypeError:
-            try:
-                return self.rotor.run_misalignment(**kwargs)
-            except Exception as e:
-                self._err = str(e); return None
+            pass
+
+        # Tentative 2 : Ancienne API ROSS
+        try:
+            kw_old = kwargs.copy()
+            if 'mis_type' in kw_old:
+                del kw_old['mis_type']
+            kw_old['misalignment_type'] = m_type_en
+            return self.rotor.run_misalignment(**kw_old)
         except Exception as e:
-            self._err = str(e); return None
+            self._err = f"Échec désalignement : {str(e)}"
+            return None
 
     def run_rubbing(self, **kwargs):
-        speed = kwargs.get('speed', 150.0)
         n = kwargs.get('n', 1)
         distance = kwargs.get('radial_clearance', 0.0001)
         k_contact = kwargs.get('contact_stiffness', 1e7)
+        speed = kwargs.get('speed', 150.0)
         
         t_arr = np.linspace(0, 1.0, 500)
         
+        # Tentative 1 : API ROSS très récente
         try:
             return self.rotor.run_rubbing(
                 n=n, 
                 contact_stiffness=k_contact, 
                 distance=distance, 
-                contact_damping=0.0,      # Nouvel argument requis
-                friction_coeff=0.1,       # Nouvel argument requis
-                speed=speed,
+                contact_damping=0.0, 
+                friction_coeff=0.1, 
                 node=n, 
                 unbalance_magnitude=1e-4, 
                 unbalance_phase=0.0, 
                 t=t_arr
             )
         except TypeError:
-            try:
-                return self.rotor.run_rubbing(**kwargs)
-            except Exception as e:
-                self._err = str(e); return None
+            pass
+
+        # Tentative 2 : Ancienne API ROSS
+        try:
+            return self.rotor.run_rubbing(**kwargs)
         except Exception as e:
-            self._err = str(e); return None
+            self._err = f"Échec frottement : {str(e)}"
+            return None
 
     @property
     def last_error(self): return self._err
