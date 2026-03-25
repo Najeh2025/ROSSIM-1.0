@@ -564,33 +564,59 @@ def _plot_campbell_fallback(camp, vmax_rpm, n_pts):
         st.error(f"Tracé Campbell impossible : {e}")
 
 def _extract_unbal(res, probe_node, probe_dof):
-    """Extrait les données en pivotant la matrice si ROSS a inversé les axes."""
-    # 1. Fréquences
-    if hasattr(res, 'speed_range'):
-        freqs = np.array(res.speed_range) / (2 * np.pi)
+    """Extrait les données (Version 100% blindée contre les anomalies de dimension)."""
+    
+    # --- Fonction utilitaire pour lire les attributs ROSS ---
+    def get_val(obj, attr_name):
+        if hasattr(obj, attr_name):
+            v = getattr(obj, attr_name)
+            return v() if callable(v) else v  # Exécute si c'est une méthode cachée
+        return None
+
+    # 1. Extraction des fréquences
+    freqs = get_val(res, 'speed_range')
+    if freqs is not None:
+        freqs = np.array(freqs) / (2 * np.pi)
     else:
-        freqs = np.linspace(0, 100, 100)
+        freqs = get_val(res, 'frequency')
+        if freqs is not None: 
+            freqs = np.array(freqs)
+        else: 
+            freqs = np.linspace(0, 100, 100) # Fallback ultime
 
-    # 2. Récupération brute des grandeurs
-    if hasattr(res, 'data_magnitude') and hasattr(res, 'data_phase'):
-        mag = np.array(res.data_magnitude)
-        ph = np.array(res.data_phase)
-    elif hasattr(res, 'forced_resp'):
-        arr = np.array(res.forced_resp)
-        mag = np.abs(arr)
-        ph = np.angle(arr)
+    freqs = np.atleast_1d(freqs) # Empêche d'avoir un array 0-D
+
+    # 2. Extraction des grandeurs
+    mag = get_val(res, 'data_magnitude')
+    ph = get_val(res, 'data_phase')
+    
+    if mag is not None and ph is not None:
+        mag = np.array(mag)
+        ph = np.array(ph)
     else:
-        raise AttributeError("Données vibratoires introuvables dans l'objet de réponse.")
+        resp = get_val(res, 'forced_resp')
+        if resp is not None:
+            arr = np.array(resp)
+            mag = np.abs(arr)
+            ph = np.angle(arr)
+        else:
+            raise AttributeError("Impossible de trouver les données vibratoires.")
 
-    # 3. Correction cruciale de l'orientation (Transposition)
-    # Si le nombre de lignes correspond au nombre de vitesses, on pivote la matrice
-    if mag.shape[0] == len(freqs) and mag.ndim >= 2 and mag.shape[1] != len(freqs):
-        mag = mag.T
-        ph = ph.T
+    # Protection vitale : garantit qu'on a au moins 1 dimension (empêche l'erreur 'tuple index')
+    mag = np.atleast_1d(mag)
+    ph = np.atleast_1d(ph)
 
-    # 4. Extraction du bon Degré de Liberté (DDL)
+    # 3. Transposition si ROSS a inversé la matrice
+    if mag.ndim >= 2:
+        if mag.shape[0] == len(freqs) and mag.shape[1] != len(freqs):
+            mag = mag.T
+            ph = ph.T
+
+    # 4. Ciblage du bon Degré de Liberté (DDL)
     dof = probe_node * 4 + probe_dof
-    safe_dof = min(dof, mag.shape[0] - 1) # Sécurité pour ne pas déborder
+    safe_dof = 0
+    if mag.ndim > 1:
+        safe_dof = min(dof, mag.shape[0] - 1)
 
     if mag.ndim == 3:
         amps = mag[safe_dof, 0, :]
@@ -601,6 +627,17 @@ def _extract_unbal(res, probe_node, probe_dof):
     else:
         amps = mag
         phases = ph
+
+    # Aplatir proprement pour l'affichage graphique
+    amps = np.atleast_1d(amps).flatten()
+    phases = np.atleast_1d(phases).flatten()
+
+    # Dernière sécurité pour garantir que X et Y ont la même taille pour Plotly
+    if len(amps) != len(freqs):
+        min_len = min(len(amps), len(freqs))
+        amps = amps[:min_len]
+        phases = phases[:min_len]
+        freqs = freqs[:min_len]
 
     return freqs, amps, phases
 
