@@ -564,43 +564,45 @@ def _plot_campbell_fallback(camp, vmax_rpm, n_pts):
         st.error(f"Tracé Campbell impossible : {e}")
 
 def _extract_unbal(res, probe_node, probe_dof):
-    """Extrait (freqs_Hz, amps_m, phases_rad) à partir des attributs exacts de ROSS."""
-    dof = probe_node * 4 + probe_dof
-
-    # 1. Extraction des fréquences (speed_range est en rad/s)
+    """Extrait les données en pivotant la matrice si ROSS a inversé les axes."""
+    # 1. Fréquences
     if hasattr(res, 'speed_range'):
         freqs = np.array(res.speed_range) / (2 * np.pi)
     else:
-        freqs = np.linspace(0, 100, 100) # Sécurité anti-crash
+        freqs = np.linspace(0, 100, 100)
 
-    # 2. Extraction via 'forced_resp' (réponse complexe brute)
-    if hasattr(res, 'forced_resp'):
-        arr = np.array(res.forced_resp)
-        # Gestion des dimensions ROSS : (ndof, nspeeds) ou (ndof, 1, nspeeds)
-        if arr.ndim == 3:
-            row = arr[min(dof, arr.shape[0]-1), 0, :]
-        elif arr.ndim == 2:
-            row = arr[min(dof, arr.shape[0]-1), :]
-        else:
-            row = arr
-        amps = np.abs(row)
-        phases = np.angle(row)
-        return freqs, amps, phases
-
-    # 3. Extraction de secours via 'data_magnitude' et 'data_phase'
+    # 2. Récupération brute des grandeurs
     if hasattr(res, 'data_magnitude') and hasattr(res, 'data_phase'):
         mag = np.array(res.data_magnitude)
         ph = np.array(res.data_phase)
-        if mag.ndim == 3:
-            amps = mag[min(dof, mag.shape[0]-1), 0, :]
-            phases = ph[min(dof, ph.shape[0]-1), 0, :]
-        elif mag.ndim == 2:
-            amps = mag[min(dof, mag.shape[0]-1), :]
-            phases = ph[min(dof, ph.shape[0]-1), :]
-        else:
-            amps = mag
-            phases = ph
-        return freqs, amps, phases
+    elif hasattr(res, 'forced_resp'):
+        arr = np.array(res.forced_resp)
+        mag = np.abs(arr)
+        ph = np.angle(arr)
+    else:
+        raise AttributeError("Données vibratoires introuvables dans l'objet de réponse.")
+
+    # 3. Correction cruciale de l'orientation (Transposition)
+    # Si le nombre de lignes correspond au nombre de vitesses, on pivote la matrice
+    if mag.shape[0] == len(freqs) and mag.ndim >= 2 and mag.shape[1] != len(freqs):
+        mag = mag.T
+        ph = ph.T
+
+    # 4. Extraction du bon Degré de Liberté (DDL)
+    dof = probe_node * 4 + probe_dof
+    safe_dof = min(dof, mag.shape[0] - 1) # Sécurité pour ne pas déborder
+
+    if mag.ndim == 3:
+        amps = mag[safe_dof, 0, :]
+        phases = ph[safe_dof, 0, :]
+    elif mag.ndim == 2:
+        amps = mag[safe_dof, :]
+        phases = ph[safe_dof, :]
+    else:
+        amps = mag
+        phases = ph
+
+    return freqs, amps, phases
 
     raise AttributeError("Impossible d'extraire les données avec les attributs disponibles.")
 
@@ -610,9 +612,12 @@ def _plot_bode_unbal(res, probe_node, probe_dof, freq_max, modal=None):
         freqs, amps, phases = _extract_unbal(res, probe_node, probe_dof)
         amps_um = amps * 1e6
         
+        # --- NOUVEAU : ALERTE PHYSIQUE ---
+        if np.max(amps_um) < 1e-6:
+            st.warning("⚠️ L'amplitude mesurée est nulle. Vérifiez que votre sonde (Nœud probe) n'est pas placée sur un palier rigide !")
+        # ---------------------------------
+        
         fig = make_subplots(rows=2, cols=1, shared_xaxes=True,
-                             subplot_titles=["Amplitude (µm)","Phase (°)"],
-                             vertical_spacing=0.1)
                              
         fig.add_trace(go.Scatter(x=freqs, y=amps_um, line=dict(color="#1F5C8B", width=2),
                                   name="Amplitude"), row=1, col=1)
