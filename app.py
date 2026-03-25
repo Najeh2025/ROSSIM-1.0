@@ -233,8 +233,7 @@ class RotorBuilder:
             return self
         props = MATERIALS_DB.get(name, MATERIALS_DB["Acier standard (AISI 1045)"])
         try:
-            self.material = rs.Material(name=name, rho=props["rho"],
-                                         E=props["E"], G_s=props["G_s"])
+            self.material = rs.Material(name=name.replace(" ", "_"), rho=props["rho"], E=props["E"], G_s=props["G_s"])
         except Exception as e:
             self._errors.append(f"Matériau invalide : {e}")
         return self
@@ -1230,7 +1229,7 @@ def _render_m1():
         if not ROSS_AVAILABLE:
             st.error("ROSS non disponible"); return
         try:
-            mat = rs.Material(name=mat_name, rho=props["rho"], E=props["E"], G_s=props["G_s"])
+            mat = rs.Material(name=mat_name.replace(" ", "_"), rho=props["rho"], E=props["E"], G_s=props["G_s"])
             shaft = [rs.ShaftElement(L=float(r[1]), idl=float(r[2]), odl=float(r[3]), material=mat)
                      for r in ed_s.itertuples()]
             disks = [rs.DiskElement.from_geometry(n=int(r[1]), material=mat,
