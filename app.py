@@ -564,58 +564,45 @@ def _plot_campbell_fallback(camp, vmax_rpm, n_pts):
         st.error(f"Tracé Campbell impossible : {e}")
 
 def _extract_unbal(res, probe_node, probe_dof):
-    """Extrait (freqs_Hz, amps_m, phases_rad) de manière ultra-robuste."""
-    # 1. Recherche des fréquences
-    freqs = None
-    for attr in ['frequency', 'speed_range', 'frequency_range', 'speed']:
-        if hasattr(res, attr) and getattr(res, attr) is not None:
-            freqs = np.array(getattr(res, attr))
-            if 'speed' in attr: freqs /= (2 * np.pi)
-            break
-    if freqs is None:
+    """Extrait (freqs_Hz, amps_m, phases_rad) à partir des attributs exacts de ROSS."""
+    dof = probe_node * 4 + probe_dof
+
+    # 1. Extraction des fréquences (speed_range est en rad/s)
+    if hasattr(res, 'speed_range'):
+        freqs = np.array(res.speed_range) / (2 * np.pi)
+    else:
         freqs = np.linspace(0, 100, 100) # Sécurité anti-crash
 
-    # 2. Recherche de l'amplitude et de la phase
-    amps, phases = None, None
-    dof = probe_node * 4 + probe_dof
-    
-    try:
-        # API moderne : res.magnitude et res.phase séparés
-        if hasattr(res, 'magnitude') and hasattr(res, 'phase'):
-            mag = np.array(res.magnitude)
-            ph = np.array(res.phase)
-            if mag.ndim == 2:
-                amps = mag[min(dof, mag.shape[0]-1), :]
-                phases = ph[min(dof, ph.shape[0]-1), :]
-            elif mag.ndim == 3:
-                amps = mag[min(dof, mag.shape[0]-1), 0, :]
-                phases = ph[min(dof, ph.shape[0]-1), 0, :]
-            else:
-                amps = mag; phases = ph
-                
-        # API intermédiaire : res.response (matrice de complexes)
-        elif hasattr(res, 'response') or hasattr(res, 'freq_resp'):
-            raw = getattr(res, 'response', None)
-            if raw is None: raw = getattr(res, 'freq_resp')
-            arr = np.array(raw)
-            if arr.ndim == 2:
-                row = arr[min(dof, arr.shape[0]-1), :]
-            elif arr.ndim == 3:
-                row = arr[min(dof, arr.shape[0]-1), 0, :]
-            else:
-                row = arr
-            amps = np.abs(row)
-            phases = np.angle(row)
-            
-        if amps is not None and phases is not None:
-            # Sécurité dimensionnelle
-            if len(amps) != len(freqs):
-                freqs = np.linspace(freqs[0], freqs[-1], len(amps))
-            return freqs, amps, phases
-    except Exception:
-        pass
-        
-    raise AttributeError(f"Structure de réponse non reconnue. Attributs : {dir(res)}")
+    # 2. Extraction via 'forced_resp' (réponse complexe brute)
+    if hasattr(res, 'forced_resp'):
+        arr = np.array(res.forced_resp)
+        # Gestion des dimensions ROSS : (ndof, nspeeds) ou (ndof, 1, nspeeds)
+        if arr.ndim == 3:
+            row = arr[min(dof, arr.shape[0]-1), 0, :]
+        elif arr.ndim == 2:
+            row = arr[min(dof, arr.shape[0]-1), :]
+        else:
+            row = arr
+        amps = np.abs(row)
+        phases = np.angle(row)
+        return freqs, amps, phases
+
+    # 3. Extraction de secours via 'data_magnitude' et 'data_phase'
+    if hasattr(res, 'data_magnitude') and hasattr(res, 'data_phase'):
+        mag = np.array(res.data_magnitude)
+        ph = np.array(res.data_phase)
+        if mag.ndim == 3:
+            amps = mag[min(dof, mag.shape[0]-1), 0, :]
+            phases = ph[min(dof, ph.shape[0]-1), 0, :]
+        elif mag.ndim == 2:
+            amps = mag[min(dof, mag.shape[0]-1), :]
+            phases = ph[min(dof, ph.shape[0]-1), :]
+        else:
+            amps = mag
+            phases = ph
+        return freqs, amps, phases
+
+    raise AttributeError("Impossible d'extraire les données avec les attributs disponibles.")
 
 def _plot_bode_unbal(res, probe_node, probe_dof, freq_max, modal=None):
     """Diagramme de Bode pour la réponse au balourd (100% Custom Plotly)."""
