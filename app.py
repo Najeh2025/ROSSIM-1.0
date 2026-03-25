@@ -395,11 +395,26 @@ class SimulationEngine:
             return None
 
     def run_time_response(self, speed_rpm, F, t):
+        speed_rad = float(speed_rpm) * np.pi / 30
+        
+        # Tentative 1 : API ROSS avec les paramètres 'F' et 't'
         try:
-            return self.rotor.run_time_response(
-                speed=float(speed_rpm) * np.pi / 30, force=F, time_range=t)
+            return self.rotor.run_time_response(speed=speed_rad, F=F, t=t)
+        except TypeError:
+            pass
+            
+        # Tentative 2 : API ROSS avec 'force' et 'time_range'
+        try:
+            return self.rotor.run_time_response(speed=speed_rad, force=F, time_range=t)
+        except TypeError:
+            pass
+            
+        # Tentative 3 : Arguments positionnels purs (au cas où les noms changent encore)
+        try:
+            return self.rotor.run_time_response(speed_rad, F, t)
         except Exception as e:
-            self._err = str(e); return None
+            self._err = f"Échec de la réponse temporelle : {str(e)}"
+            return None
 
     def run_crack(self, **kwargs):
         try:
