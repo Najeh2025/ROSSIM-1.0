@@ -2372,7 +2372,7 @@ def render_ross_gpt():
 
 
 def _call_ross_gpt(user_msg: str, context: dict, history: list) -> str:
-    """Appel à l'API Google Gemini avec contexte ROSS (Version Ultra-Stable)."""
+    """Appel à l'API Google Gemini avec détection automatique du modèle."""
     import json
     try:
         import google.generativeai as genai
@@ -2383,28 +2383,42 @@ def _call_ross_gpt(user_msg: str, context: dict, history: list) -> str:
 
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
-        # Le contexte injecté
+        # 1. L'ARME SECRÈTE : On demande à l'API quels modèles sont autorisés
+        valid_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+        
+        if not valid_models:
+            return "❌ Erreur : Aucun modèle textuel trouvé pour cette clé API.\n\n" + _fallback_ross_gpt(user_msg, context)
+            
+        # On choisit intelligemment le meilleur modèle dans la liste autorisée
+        model_name = valid_models[0] # Choix par défaut
+        for m in valid_models:
+            if "flash" in m:
+                model_name = m
+                break
+            elif "pro" in m and "vision" not in m:
+                model_name = m
+
+        # 2. Le contexte injecté
         system_prompt = f"""Tu es ROSS GPT, un expert spécialisé dans la bibliothèque Python ROSS.
 Tu maîtrises parfaitement : ShaftElement, DiskElement, BearingElement, Campbell, modes propres, instabilités.
 Contexte du modèle actuellement chargé :
 {json.dumps(context, ensure_ascii=False, indent=2)}
 Réponds en français, sois pédagogique et fournis du code ROSS fonctionnel."""
 
-        # Utilisation du modèle universel (ne génère jamais de 404)
-        model = genai.GenerativeModel("gemini-pro")
+        # 3. Initialisation avec le modèle validé dynamiquement
+        model = genai.GenerativeModel(model_name)
 
-        # ASTUCE : On glisse le contexte comme étant le tout premier échange de la conversation
+        # 4. Historique de conversation
         gemini_history = [
             {"role": "user", "parts": [system_prompt]},
             {"role": "model", "parts": ["C'est bien noté. Je suis ROSS GPT, prêt à analyser vos rotors et à générer du code Python !"]}
         ]
 
-        # On ajoute le reste de l'historique
         for h in history[-6:]:  
             role = "user" if h["role"] == "user" else "model"
             gemini_history.append({"role": role, "parts": [h["content"]]})
 
-        # Démarrage et envoi
+        # 5. Démarrage et envoi
         chat = model.start_chat(history=gemini_history)
         response = chat.send_message(user_msg)
 
@@ -2413,7 +2427,11 @@ Réponds en français, sois pédagogique et fournis du code ROSS fonctionnel."""
     except ImportError:
         return "⚠️ Erreur : La bibliothèque 'google-generativeai' n'est pas installée.\n\n" + _fallback_ross_gpt(user_msg, context)
     except Exception as e:
-        return f"❌ Erreur Gemini : {str(e)}\n\n" + _fallback_ross_gpt(user_msg, context)
+        # On affiche le nom du modèle testé dans l'erreur pour savoir ce qui s'est passé
+        nom_modele = model_name if 'model_name' in locals() else 'Inconnu'
+        return f"❌ Erreur Gemini (Modèle testé : {nom_modele}) : {str(e)}\n\n" + _fallback_ross_gpt(user_msg, context)
+
+
 def _fallback_ross_gpt(user_msg: str, context: dict) -> str:
     """Réponses intelligentes pré-programmées sans API (mode offline)."""
     msg_lower = user_msg.lower()
