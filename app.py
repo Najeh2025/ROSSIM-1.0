@@ -663,6 +663,37 @@ def generate_pdf_reportlab(rotor, df_modal=None):
                 ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
             ]))
             elements.append(t)
+            # 4. Nouveau Tableau : Conformité API 684
+        if df_api is not None and not df_api.empty:
+        elements.append(Spacer(1, 15))
+        elements.append(Paragraph("4. Conformité Norme API 684", styles['Heading2']))
+        
+        # Affichage des paramètres globaux
+        if api_params:
+            elements.append(Paragraph(f"<b>Vitesse opérationnelle :</b> {api_params['op_rpm']:.0f} RPM", styles['Normal']))
+            elements.append(Paragraph(f"<b>Zone interdite :</b> [{api_params['zl']:.0f} – {api_params['zh']:.0f}] RPM", styles['Normal']))
+            elements.append(Paragraph(f"<b>Score de conformité :</b> {api_params['score']:.0f}%", styles['Normal']))
+            elements.append(Spacer(1, 10))
+        
+        # Nettoyage du tableau (Retrait des emojis ✅❌ qui font crasher la police standard du PDF)
+        df_api_clean = df_api.copy().astype(str)
+        for col in df_api_clean.columns:
+            df_api_clean[col] = df_api_clean[col].str.replace(r"[✅⚠️❌]", "", regex=True).str.strip()
+            
+        data_api = [df_api_clean.columns.tolist()] + df_api_clean.values.tolist()
+        
+        # Création du tableau (En-tête bordeaux pour le différencier des autres)
+        t_api = Table(data_api) 
+        t_api.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#8B1F1F")), # Bordeaux élégant
+            ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0,0), (-1,0), 10),
+            ('BACKGROUND', (0,1), (-1,-1), colors.whitesmoke),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+        ]))
+        elements.append(t_api)
             
         doc.build(elements)
         return buffer.getvalue()
@@ -1802,6 +1833,14 @@ def _render_m3():
                      unsafe_allow_html=True)
         # Export
         df_api = pd.DataFrame(results_api)
+        # Sauvegarde en mémoire pour le module M6 (Rapport PDF)
+        st.session_state["df_api"] = df_api
+        st.session_state["api_params"] = {
+            "op_rpm": op_rpm,
+            "zl": zl,
+            "zh": zh,
+            "score": score
+        }
         rep = ReportGenerator(st.session_state.get("user_name",""))
         html = rep.html_report("Rapport API 684",
             {"Vitesse opérationnelle (RPM)": f"{op_rpm:.0f}",
@@ -2230,6 +2269,10 @@ def _render_m6():
         # (Espace prévu pour tes futurs modules)
         has_campbell = "campbell_data" in st.session_state
         inc_campbell = st.checkbox("📈 Diagramme de Campbell", value=has_campbell, disabled=True) # Désactivé pour l'instant
+        
+        # (Dans la section des cases à cocher de _render_m6)
+        has_api = "df_api" in st.session_state
+        inc_api = st.checkbox("📜 Conformité Norme API 684", value=has_api, disabled=not has_api)
 
     with col2:
         st.info("💡 Les modules grisés nécessitent d'avoir lancé les calculs correspondants (ex: M2) au préalable pour être inclus dans le rapport.")
@@ -2244,9 +2287,17 @@ def _render_m6():
                 try:
                     # On récupère les données sélectionnées
                     df_m = st.session_state["df_modal"] if inc_modal else None
+                    # Récupération conditionnelle
+                    df_m = st.session_state["df_modal"] if inc_modal else None
+                    df_c = st.session_state.get("df_campbell") if inc_campbell else None
+                    df_api_data = st.session_state["df_api"] if inc_api else None
+                    api_p = st.session_state["api_params"] if inc_api else None
+                    
+                    # Nouvel appel de la fonction avec tous les arguments
+                    pdf_bytes = generate_pdf_reportlab(rotor, df_m, df_c, df_api_data, api_p)
                     
                     # On appelle la fonction ReportLab que nous avons créée précédemment
-                    pdf_bytes = generate_pdf_reportlab(rotor, df_m)
+                    # pdf_bytes = generate_pdf_reportlab(rotor, df_m)
                     
                     st.success("✅ Rapport généré !")
                     st.download_button(
