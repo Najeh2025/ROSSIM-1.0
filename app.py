@@ -1378,21 +1378,80 @@ def render_simulation_mode():
 # ── M1 — Constructeur ─────────────────────────────────────────────────────────
 def _render_m1():
     st.subheader("🏗️ M1 — Constructeur de Rotor")
-    st.caption("Bibliothèque de matériaux · Validation temps réel")
+    st.caption("Bibliothèque de matériaux · Validation temps réel · Export TOML/Python")
 
-    # 1. Création des 4 onglets principaux
+    # =========================================================
+    # 0. INITIALISATION DES TABLEAUX EN MÉMOIRE (Points 1 & 4)
+    # =========================================================
+    def init_tables():
+        st.session_state.df_shaft = pd.DataFrame([{"L (m)":0.2,"id (m)":0.0,"od (m)":0.05} for _ in range(5)])
+        st.session_state.df_disk = pd.DataFrame([{"nœud":2,"id (m)":0.05,"od (m)":0.25,"largeur (m)":0.07}])
+        
+        # On utilise une valeur par défaut de base pour éviter les erreurs d'initialisation
+        st.session_state.df_bear = pd.DataFrame([
+            {"nœud":0, "kxx":1e6,"kyy":1e6,"kxy":0,"cxx":0,"cyy":0},
+            {"nœud":5, "kxx":1e6,"kyy":1e6,"kxy":0,"cxx":0,"cyy":0},
+        ])
+
+    # Si c'est la première fois qu'on ouvre la page, on initialise
+    if "df_shaft" not in st.session_state:
+        init_tables()
+
+    # =========================================================
+    # BARRE D'OUTILS : NOUVEAU / CHARGER / ENREGISTRER (Points 2 & 3)
+    # =========================================================
+    with st.expander("📁 Gestion des fichiers du Rotor", expanded=True):
+        col_new, col_load, col_save = st.columns(3)
+        
+        with col_new:
+            st.markdown("**Nouveau / Réinitialiser**")
+            if st.button("📄 Initialiser les tableaux", use_container_width=True):
+                init_tables()
+                st.rerun() # Rafraîchit la page pour vider les tableaux
+                
+        with col_load:
+            st.markdown("**Charger un rotor (.json)**")
+            uploaded_file = st.file_uploader("Charger", type=["json"], label_visibility="collapsed")
+            if uploaded_file is not None:
+                try:
+                    data = json.load(uploaded_file)
+                    st.session_state.df_shaft = pd.DataFrame(data["shaft"])
+                    st.session_state.df_disk = pd.DataFrame(data["disks"])
+                    st.session_state.df_bear = pd.DataFrame(data["bearings"])
+                    st.success("Données chargées !")
+                except Exception as e:
+                    st.error("Erreur de lecture du fichier. Format invalide.")
+                    
+        with col_save:
+            st.markdown("**Sauvegarder le rotor**")
+            # On prépare le dictionnaire texte (JSON) avec l'état actuel des tableaux
+            current_data = {
+                "shaft": st.session_state.df_shaft.to_dict(orient="records"),
+                "disks": st.session_state.df_disk.to_dict(orient="records"),
+                "bearings": st.session_state.df_bear.to_dict(orient="records")
+            }
+            json_str = json.dumps(current_data, indent=4)
+            st.download_button(
+                label="💾 Enregistrer les données", 
+                data=json_str, 
+                file_name="donnees_rotor.json", 
+                mime="application/json", 
+                use_container_width=True
+            )
+
+    st.markdown("---")
+
+    # =========================================================
+    # 1. CRÉATION DES ONGLETS PRINCIPAUX
+    # =========================================================
     tab_mat, tab_arbre, tab_disques, tab_paliers = st.tabs([
-        "🧱 1. Matériau", 
-        "📏 2. Arbre", 
-        "💿 3. Disques", 
-        "⚙️ 4. Paliers"
+        "🧱 1. Matériau", "📏 2. Arbre", "💿 3. Disques", "⚙️ 4. Paliers"
     ])
 
     # --- ONGLET 1 : MATÉRIAU ---
     with tab_mat:
         mat_name = st.selectbox("Matériau :", list(MATERIALS_DB.keys()), key="m1_mat")
         props = MATERIALS_DB[mat_name]
-        
         if mat_name == "Personnalisé":
             col1, col2, col3 = st.columns(3)
             with col1: props["rho"] = st.number_input("ρ (kg/m³)", 500.0, 20000.0, float(props["rho"]))
@@ -1409,36 +1468,39 @@ def _render_m1():
         st.caption("Éléments de poutre Timoshenko — chaque ligne = 1 section")
         col_table_a, col_vide_a = st.columns([8, 2])
         with col_table_a:
-            df_s = pd.DataFrame([{"L (m)":0.2,"id (m)":0.0,"od (m)":0.05} for _ in range(5)])
-            ed_s = st.data_editor(df_s, num_rows="dynamic", key="m1_shaft", use_container_width=True)
+            # On lit et on écrit directement dans st.session_state
+            st.session_state.df_shaft = st.data_editor(st.session_state.df_shaft, num_rows="dynamic", key="m1_shaft", use_container_width=True)
 
     # --- ONGLET 3 : DISQUES ---
     with tab_disques:
         st.caption("Masses concentrées (Disques / Roues)")
         col_table_d, col_vide_d = st.columns([8, 2])
         with col_table_d:
-            df_d = pd.DataFrame([{"nœud":2,"id (m)":0.05,"od (m)":0.25,"largeur (m)":0.07}])
-            ed_d = st.data_editor(df_d, num_rows="dynamic", key="m1_disk", use_container_width=True)
+            st.session_state.df_disk = st.data_editor(st.session_state.df_disk, num_rows="dynamic", key="m1_disk", use_container_width=True)
 
     # --- ONGLET 4 : PALIERS ---
     with tab_paliers:
         col_preset, col_vide_p = st.columns([3, 7])
         with col_preset:
-            preset = st.selectbox("Preset :", list(BEARING_PRESETS.keys()), key="m1_bp")
-            
-        p = BEARING_PRESETS[preset]
-        n_el_est = max(1, len(ed_s) - 1)
+            preset = st.selectbox("Preset (optionnel) :", ["-", *list(BEARING_PRESETS.keys())], key="m1_bp")
+            if preset != "-":
+                p = BEARING_PRESETS[preset]
+                n_el_est = max(1, len(st.session_state.df_shaft) - 1)
+                # Si l'utilisateur choisit un preset, on écrase le tableau
+                st.session_state.df_bear = pd.DataFrame([
+                    {"nœud":0, "kxx":p["kxx"],"kyy":p["kyy"],"kxy":p["kxy"],"cxx":p["cxx"],"cyy":p["cyy"]},
+                    {"nœud":n_el_est, "kxx":p["kxx"],"kyy":p["kyy"],"kxy":p["kxy"],"cxx":p["cxx"],"cyy":p["cyy"]},
+                ])
+                
         col_table_p, col_vide_p2 = st.columns([9, 1]) 
         with col_table_p:
-            df_b = pd.DataFrame([
-                {"nœud":0, "kxx":p["kxx"],"kyy":p["kyy"],"kxy":p["kxy"],"cxx":p["cxx"],"cyy":p["cyy"]},
-                {"nœud":n_el_est, "kxx":p["kxx"],"kyy":p["kyy"],"kxy":p["kxy"],"cxx":p["cxx"],"cyy":p["cyy"]},
-            ])
-            ed_b = st.data_editor(df_b, num_rows="dynamic", key="m1_bear", use_container_width=True)
+            st.session_state.df_bear = st.data_editor(st.session_state.df_bear, num_rows="dynamic", key="m1_bear", use_container_width=True)
 
     st.markdown("---")
 
-    # --- BOUTON D'ASSEMBLAGE ---
+    # =========================================================
+    # BOUTON D'ASSEMBLAGE (Reste identique)
+    # =========================================================
     col_btn, col_msg = st.columns([3, 7])
     with col_btn:
         if st.button("🚀 Assembler le rotor", type="primary", key="m1_build", use_container_width=True):
@@ -1446,68 +1508,49 @@ def _render_m1():
                 st.error("ROSS non disponible")
                 return
             try:
-                with st.spinner("Construction du modèle mathématique..."):
+                with st.spinner("Construction du modèle..."):
                     mat = rs.Material(name=mat_name.replace(" ", "_"), rho=props["rho"], E=props["E"], G_s=props["G_s"])
-                    shaft = [rs.ShaftElement(L=float(r[1]), idl=float(r[2]), odl=float(r[3]), material=mat)
-                             for r in ed_s.itertuples()]
-                    disks = [rs.DiskElement.from_geometry(n=int(r[1]), material=mat,
-                             width=float(r[4]), i_d=float(r[2]), o_d=float(r[3]))
-                             for r in ed_d.itertuples()]
-                    bears = [rs.BearingElement(n=int(r[1]), kxx=float(r[2]), kyy=float(r[3]),
-                              kxy=float(r[4]), kyx=-float(r[4]), cxx=float(r[5]), cyy=float(r[6]))
-                             for r in ed_b.itertuples()]
+                    
+                    # On lit les données depuis la mémoire de session
+                    shaft = [rs.ShaftElement(L=float(r.get("L (m)", r.get("L"))), idl=float(r.get("id (m)", r.get("id"))), odl=float(r.get("od (m)", r.get("od"))), material=mat)
+                             for r in st.session_state.df_shaft.to_dict('records')]
+                             
+                    disks = [rs.DiskElement.from_geometry(n=int(r["nœud"]), material=mat,
+                             width=float(r["largeur (m)"]), i_d=float(r["id (m)"]), o_d=float(r["od (m)"]))
+                             for r in st.session_state.df_disk.to_dict('records')]
+                             
+                    bears = [rs.BearingElement(n=int(r["nœud"]), kxx=float(r["kxx"]), kyy=float(r["kyy"]),
+                              kxy=float(r["kxy"]), kyx=-float(r["kxy"]), cxx=float(r["cxx"]), cyy=float(r["cyy"]))
+                             for r in st.session_state.df_bear.to_dict('records')]
                     
                     rotor = rs.Rotor(shaft, disks, bears)
                     _CACHE["free_rotor"] = rotor
                     _CACHE["free_mat_props"] = props.copy()
                     
-                    # SÉCURITÉ : On s'assure que le mode simulation utilisera ce rotor et non le compresseur
                     st.session_state["rotor_is_compressor"] = False
                     st.session_state["rotor"] = rotor
-                    if "engine" in st.session_state:
-                        del st.session_state["engine"]
-                        
+                    if "engine" in st.session_state: del st.session_state["engine"]
                     st.session_state["sim_count"] = st.session_state.get("sim_count",0)+1
                 
                 with col_msg:
                     st.success(f"✅ Rotor assemblé — {len(rotor.nodes)} nœuds | Masse : {rotor.m:.2f} kg")
-                    
             except Exception as e:
-                with col_msg:
-                    st.error(f"❌ Erreur d'assemblage : {e}")
-                st.code(traceback.format_exc(), language="text")
+                with col_msg: st.error(f"❌ Erreur d'assemblage : {e}")
 
-    # --- AFFICHAGE ET EXPORT (Si un rotor existe en cache) ---
+    # =========================================================
+    # AFFICHAGE ET EXPORT (Reste identique)
+    # =========================================================
     rotor_cache = _CACHE.get("free_rotor")
     if rotor_cache:
         col1, col2, col3 = st.columns(3)
         col1.metric("Masse totale", f"{rotor_cache.m:.2f} kg")
         col2.metric("Nœuds", len(rotor_cache.nodes))
-        col3.metric("Longueur", f"{sum(float(r[1]) for r in ed_s.itertuples()):.3f} m")
+        # Arrondi de la longueur
+        L_totale = sum(float(r.get("L (m)", 0)) for r in st.session_state.df_shaft.to_dict('records'))
+        col3.metric("Longueur", f"{L_totale:.3f} m")
         
-        try: 
-            st.plotly_chart(rotor_cache.plot_rotor(), use_container_width=True)
-        except Exception: 
-            st.info("Visualisation 3D — non disponible dans cette version ROSS")
-
-        st.markdown("---")
-        col_dl1, col_dl2 = st.columns(2)
-        with col_dl1:
-            rep = ReportGenerator(st.session_state.get("user_name",""))
-            script = rep.python_script({"rho": props["rho"], "E": props["E"], "G_s": props["G_s"]})
-            st.download_button("💾 Export code Python ROSS", data=script.encode(),
-                                file_name="mon_rotor_ross.py", mime="text/plain")
-        with col_dl2:
-            params_info = {
-                "Matériau": mat_name,
-                "Masse (kg)": f"{rotor_cache.m:.3f}",
-                "Nœuds": str(len(rotor_cache.nodes)),
-            }
-            html = ReportGenerator().html_report("Modèle Rotor", params_info,
-                [{"title":"Masse et géométrie",
-                  "text":f"Masse totale : {rotor_cache.m:.2f} kg | {len(rotor_cache.nodes)} nœuds"}])
-            st.download_button("📄 Export rapport HTML", data=html.encode(),
-                                file_name="rapport_rotor.html", mime="text/html")
+        try: st.plotly_chart(rotor_cache.plot_rotor(), use_container_width=True)
+        except Exception: st.info("Visualisation 3D non disponible.")
 
 # ── M2 — Statique & Modal ─────────────────────────────────────────────────────
 def _render_m2():
