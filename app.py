@@ -1380,10 +1380,19 @@ def _render_m1():
     st.subheader("🏗️ M1 — Constructeur de Rotor")
     st.caption("Bibliothèque de matériaux · Validation temps réel · Export TOML/Python")
 
-    # Matériau
-    with st.expander("🧱 Matériau", expanded=True):
+    # 1. Création des 4 onglets principaux
+    tab_mat, tab_arbre, tab_disques, tab_paliers = st.tabs([
+        "🧱 1. Matériau", 
+        "📏 2. Arbre", 
+        "💿 3. Disques", 
+        "⚙️ 4. Paliers"
+    ])
+
+    # --- ONGLET 1 : MATÉRIAU ---
+    with tab_mat:
         mat_name = st.selectbox("Matériau :", list(MATERIALS_DB.keys()), key="m1_mat")
         props = MATERIALS_DB[mat_name]
+        
         if mat_name == "Personnalisé":
             col1, col2, col3 = st.columns(3)
             with col1: props["rho"] = st.number_input("ρ (kg/m³)", 500.0, 20000.0, float(props["rho"]))
@@ -1395,60 +1404,92 @@ def _render_m1():
             col2.metric("E (GPa)", f"{props['E']/1e9:.1f}")
             col3.metric("G_s (GPa)", f"{props['G_s']/1e9:.1f}")
 
-    # Arbre
-    with st.expander("🔩 Arbre (ShaftElement)", expanded=True):
+    # --- ONGLET 2 : ARBRE ---
+    with tab_arbre:
         st.caption("Éléments de poutre Timoshenko — chaque ligne = 1 section")
-        df_s = pd.DataFrame([{"L (m)":0.2,"id (m)":0.0,"od (m)":0.05} for _ in range(5)])
-        ed_s = st.data_editor(df_s, num_rows="dynamic", key="m1_shaft")
+        col_table_a, col_vide_a = st.columns([8, 2])
+        with col_table_a:
+            df_s = pd.DataFrame([{"L (m)":0.2,"id (m)":0.0,"od (m)":0.05} for _ in range(5)])
+            ed_s = st.data_editor(df_s, num_rows="dynamic", key="m1_shaft", use_container_width=True)
 
-    # Disques
-    with st.expander("💿 Disques (DiskElement)"):
-        df_d = pd.DataFrame([{"nœud":2,"id (m)":0.05,"od (m)":0.25,"largeur (m)":0.07}])
-        ed_d = st.data_editor(df_d, num_rows="dynamic", key="m1_disk")
+    # --- ONGLET 3 : DISQUES ---
+    with tab_disques:
+        st.caption("Masses concentrées (Disques / Roues)")
+        col_table_d, col_vide_d = st.columns([8, 2])
+        with col_table_d:
+            df_d = pd.DataFrame([{"nœud":2,"id (m)":0.05,"od (m)":0.25,"largeur (m)":0.07}])
+            ed_d = st.data_editor(df_d, num_rows="dynamic", key="m1_disk", use_container_width=True)
 
-    # Paliers
-    with st.expander("🔗 Paliers (BearingElement)", expanded=True):
-        preset = st.selectbox("Preset :", list(BEARING_PRESETS.keys()), key="m1_bp")
+    # --- ONGLET 4 : PALIERS ---
+    with tab_paliers:
+        col_preset, col_vide_p = st.columns([3, 7])
+        with col_preset:
+            preset = st.selectbox("Preset :", list(BEARING_PRESETS.keys()), key="m1_bp")
+            
         p = BEARING_PRESETS[preset]
         n_el_est = max(1, len(ed_s) - 1)
-        df_b = pd.DataFrame([
-            {"nœud":0, "kxx":p["kxx"],"kyy":p["kyy"],"kxy":p["kxy"],"cxx":p["cxx"],"cyy":p["cyy"]},
-            {"nœud":n_el_est, "kxx":p["kxx"],"kyy":p["kyy"],"kxy":p["kxy"],"cxx":p["cxx"],"cyy":p["cyy"]},
-        ])
-        ed_b = st.data_editor(df_b, num_rows="dynamic", key="m1_bear")
+        col_table_p, col_vide_p2 = st.columns([9, 1]) 
+        with col_table_p:
+            df_b = pd.DataFrame([
+                {"nœud":0, "kxx":p["kxx"],"kyy":p["kyy"],"kxy":p["kxy"],"cxx":p["cxx"],"cyy":p["cyy"]},
+                {"nœud":n_el_est, "kxx":p["kxx"],"kyy":p["kyy"],"kxy":p["kxy"],"cxx":p["cxx"],"cyy":p["cyy"]},
+            ])
+            ed_b = st.data_editor(df_b, num_rows="dynamic", key="m1_bear", use_container_width=True)
 
-    # Build
-    if st.button("🚀 Assembler le rotor", type="primary", key="m1_build"):
-        if not ROSS_AVAILABLE:
-            st.error("ROSS non disponible"); return
-        try:
-            mat = rs.Material(name=mat_name.replace(" ", "_"), rho=props["rho"], E=props["E"], G_s=props["G_s"])
-            shaft = [rs.ShaftElement(L=float(r[1]), idl=float(r[2]), odl=float(r[3]), material=mat)
-                     for r in ed_s.itertuples()]
-            disks = [rs.DiskElement.from_geometry(n=int(r[1]), material=mat,
-                      width=float(r[4]), i_d=float(r[2]), o_d=float(r[3]))
-                     for r in ed_d.itertuples()]
-            bears = [rs.BearingElement(n=int(r[1]), kxx=float(r[2]), kyy=float(r[3]),
-                      kxy=float(r[4]), kyx=-float(r[4]), cxx=float(r[5]), cyy=float(r[6]))
-                     for r in ed_b.itertuples()]
-            rotor = rs.Rotor(shaft, disks, bears)
-            _CACHE["free_rotor"] = rotor
-            _CACHE["free_mat_props"] = props.copy()
-            st.session_state["sim_count"] = st.session_state.get("sim_count",0)+1
-            st.success(f"✅ Rotor assemblé — {len(rotor.nodes)} nœuds | Masse : {rotor.m:.2f} kg")
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Masse totale", f"{rotor.m:.2f} kg")
-            col2.metric("Nœuds", len(rotor.nodes))
-            col3.metric("Longueur", f"{sum(float(r[1]) for r in ed_s.itertuples()):.3f} m")
-            try: st.plotly_chart(rotor.plot_rotor(), use_container_width=True)
-            except Exception: st.info("Visualisation 3D — non disponible dans cette version ROSS")
-        except Exception as e:
-            st.error(f"❌ Erreur d'assemblage : {e}")
-            st.code(traceback.format_exc(), language="text")
+    st.markdown("---")
 
-    # Export
-    rotor = _CACHE.get("free_rotor")
-    if rotor:
+    # --- BOUTON D'ASSEMBLAGE ---
+    col_btn, col_msg = st.columns([3, 7])
+    with col_btn:
+        if st.button("🚀 Assembler le rotor", type="primary", key="m1_build", use_container_width=True):
+            if not ROSS_AVAILABLE:
+                st.error("ROSS non disponible")
+                return
+            try:
+                with st.spinner("Construction du modèle mathématique..."):
+                    mat = rs.Material(name=mat_name.replace(" ", "_"), rho=props["rho"], E=props["E"], G_s=props["G_s"])
+                    shaft = [rs.ShaftElement(L=float(r[1]), idl=float(r[2]), odl=float(r[3]), material=mat)
+                             for r in ed_s.itertuples()]
+                    disks = [rs.DiskElement.from_geometry(n=int(r[1]), material=mat,
+                             width=float(r[4]), i_d=float(r[2]), o_d=float(r[3]))
+                             for r in ed_d.itertuples()]
+                    bears = [rs.BearingElement(n=int(r[1]), kxx=float(r[2]), kyy=float(r[3]),
+                              kxy=float(r[4]), kyx=-float(r[4]), cxx=float(r[5]), cyy=float(r[6]))
+                             for r in ed_b.itertuples()]
+                    
+                    rotor = rs.Rotor(shaft, disks, bears)
+                    _CACHE["free_rotor"] = rotor
+                    _CACHE["free_mat_props"] = props.copy()
+                    
+                    # SÉCURITÉ : On s'assure que le mode simulation utilisera ce rotor et non le compresseur
+                    st.session_state["rotor_is_compressor"] = False
+                    st.session_state["rotor"] = rotor
+                    if "engine" in st.session_state:
+                        del st.session_state["engine"]
+                        
+                    st.session_state["sim_count"] = st.session_state.get("sim_count",0)+1
+                
+                with col_msg:
+                    st.success(f"✅ Rotor assemblé — {len(rotor.nodes)} nœuds | Masse : {rotor.m:.2f} kg")
+                    
+            except Exception as e:
+                with col_msg:
+                    st.error(f"❌ Erreur d'assemblage : {e}")
+                st.code(traceback.format_exc(), language="text")
+
+    # --- AFFICHAGE ET EXPORT (Si un rotor existe en cache) ---
+    rotor_cache = _CACHE.get("free_rotor")
+    if rotor_cache:
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Masse totale", f"{rotor_cache.m:.2f} kg")
+        col2.metric("Nœuds", len(rotor_cache.nodes))
+        col3.metric("Longueur", f"{sum(float(r[1]) for r in ed_s.itertuples()):.3f} m")
+        
+        try: 
+            st.plotly_chart(rotor_cache.plot_rotor(), use_container_width=True)
+        except Exception: 
+            st.info("Visualisation 3D — non disponible dans cette version ROSS")
+
         st.markdown("---")
         col_dl1, col_dl2 = st.columns(2)
         with col_dl1:
@@ -1459,15 +1500,14 @@ def _render_m1():
         with col_dl2:
             params_info = {
                 "Matériau": mat_name,
-                "Masse (kg)": f"{rotor.m:.3f}",
-                "Nœuds": str(len(rotor.nodes)),
+                "Masse (kg)": f"{rotor_cache.m:.3f}",
+                "Nœuds": str(len(rotor_cache.nodes)),
             }
             html = ReportGenerator().html_report("Modèle Rotor", params_info,
                 [{"title":"Masse et géométrie",
-                  "text":f"Masse totale : {rotor.m:.2f} kg | {len(rotor.nodes)} nœuds"}])
+                  "text":f"Masse totale : {rotor_cache.m:.2f} kg | {len(rotor_cache.nodes)} nœuds"}])
             st.download_button("📄 Export rapport HTML", data=html.encode(),
                                 file_name="rapport_rotor.html", mime="text/html")
-
 
 # ── M2 — Statique & Modal ─────────────────────────────────────────────────────
 def _render_m2():
