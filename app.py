@@ -618,7 +618,7 @@ class ReportGenerator:
 # =============================================================================
 # HELPERS UI
 # =============================================================================
-def generate_pdf_reportlab(rotor, df_modal=None):
+def generate_pdf_reportlab(rotor, df_modal=None, df_campbell=None, df_api=None, api_params=None):
         """Génère un rapport PDF avancé avec ReportLab."""
         buffer = io.BytesIO()
         doc = SimpleDocTemplate(buffer, pagesize=A4)
@@ -1740,6 +1740,7 @@ def _render_m3():
                         "fn (Hz)": [f"{v:.2f}" for v in fn[:6]],
                         "Vitesse critique (RPM)": [f"{v*60:.0f}" for v in fn[:6]],
                     })
+                    st.session_state["df_campbell"] = df_vc
                     st.markdown("**⚡ Vitesses critiques (intersections 1X) :**")
                     st.dataframe(df_vc, use_container_width=True, hide_index=True)
             else:
