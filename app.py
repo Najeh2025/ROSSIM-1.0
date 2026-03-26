@@ -474,25 +474,32 @@ class SimulationEngine:
         t_arr = np.linspace(0, 1.0, 500)
         
         try:
-            # API ROSS récente (On utilise le vrai nom : misalignment_type)
+            # L'API ultime de ROSS : on injecte explicitement les raideurs de l'accouplement 
+            # et on décompose la distance en X, Y et Angle selon le type.
             return self.rotor.run_misalignment(
+                n=n, 
                 node=[n], 
                 unbalance_magnitude=[1e-4], 
                 unbalance_phase=[0.0], 
                 t=t_arr,
-                mis_distance=misalignment, 
-                misalignment_type=m_type_en,  # <-- C'était ici le petit piège !
-                speed=speed
+                speed=speed,
+                coupling="flex",
+                mis_type=m_type_en,
+                mis_distance_x=misalignment if m_type_en == "parallel" else 0.0,
+                mis_distance_y=0.0,
+                mis_angle=misalignment if m_type_en == "angular" else 0.0,
+                radial_stiffness=5e7,   # Requis par ROSS pour éviter un crash mathématique
+                bending_stiffness=5e7   # Requis par ROSS
             )
         except Exception as e1:
             try:
-                # Ancienne API 
+                # Ancienne API de secours
                 return self.rotor.run_misalignment(
                     node=[n], unbalance_magnitude=[1e-4], unbalance_phase=[0.0], t=t_arr,
-                    misalignment=misalignment, misalignment_type=m_type_en, speed=speed
+                    mis_type=m_type_en, misalignment_type=m_type_en, misalignment=misalignment, speed=speed
                 )
             except Exception as e2:
-                self._err = f"Échec Désalignement: {str(e2)}"
+                self._err = f"Échec Désalignement: {str(e1)} | {str(e2)}"
                 return None
 
     def run_rubbing(self, **kwargs):
