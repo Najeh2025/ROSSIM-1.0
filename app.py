@@ -946,7 +946,7 @@ def render_dashboard():
                     del st.session_state["engine"]
                 _CACHE.clear()
             
-        st.success(f"✅ Compresseur chargé — {comp.ndof//4} nœuds")
+                st.success(f"✅ Compresseur chargé — {comp.ndof//4} nœuds")
 
 # =============================================================================
 # PAGE : MODE PÉDAGOGIQUE — TUTORIELS
