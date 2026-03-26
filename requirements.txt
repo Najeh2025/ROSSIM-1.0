@@ -19,6 +19,6 @@ plotly>=5.17.0
 anthropic>=0.20.0
 
 # ── Export ──
-# reportlab>=4.0.0   # PDF avancé — activer si nécessaire
+reportlab>=4.0.0   # PDF avancé — activer si nécessaire
 #  ajouter Gemini API
 google-generativeai>=0.5.0
