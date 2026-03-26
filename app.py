@@ -619,73 +619,89 @@ class ReportGenerator:
 # HELPERS UI
 # =============================================================================
 def generate_pdf_reportlab(rotor, df_modal=None, df_campbell=None, df_api=None, api_params=None):
-        """Génère un rapport PDF avancé avec ReportLab."""
-        buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4)
-        elements = []
-        styles = getSampleStyleSheet()
+    """Génère un rapport PDF avancé avec ReportLab."""
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # 1. Titre
+    elements.append(Paragraph("Rapport de Simulation Rotordynamique", styles['Title']))
+    elements.append(Spacer(1, 15))
+    
+    # 2. Caractéristiques du rotor
+    elements.append(Paragraph("1. Caractéristiques du Modèle", styles['Heading2']))
+    longueur = getattr(rotor, 'L', sum([el.L for el in getattr(rotor, 'shaft_elements', [])]))
+    
+    elements.append(Paragraph(f"<b>Masse totale :</b> {rotor.m:.2f} kg", styles['Normal']))
+    elements.append(Paragraph(f"<b>Longueur totale :</b> {longueur:.3f} m", styles['Normal']))
+    elements.append(Paragraph(f"<b>Nœuds :</b> {len(rotor.nodes)}", styles['Normal']))
+    elements.append(Spacer(1, 15))
+    
+    # 3. Tableau de l'Analyse Modale (Bleu)
+    if df_modal is not None and not df_modal.empty:
+        elements.append(Paragraph("2. Analyse Modale (Fréquences et Stabilité)", styles['Heading2']))
+        elements.append(Spacer(1, 10))
         
-        # 1. Titre
-        elements.append(Paragraph("Rapport de Simulation Rotordynamique", styles['Title']))
+        df_clean = df_modal.copy()
+        for col in df_clean.columns:
+            df_clean[col] = df_clean[col].astype(str).replace(r"[✅⚠️❌]", "", regex=True).str.strip()
+        
+        data = [df_clean.columns.tolist()] + df_clean.values.tolist()
+        
+        t = Table(data) 
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#1F5C8B")), 
+            ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0,0), (-1,0), 10),
+            ('BACKGROUND', (0,1), (-1,-1), colors.whitesmoke),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+        ]))
+        elements.append(t)
+        
+    # 4. Tableau des Vitesses Critiques / Campbell (Vert)
+    if df_campbell is not None and not df_campbell.empty:
         elements.append(Spacer(1, 15))
+        elements.append(Paragraph("3. Vitesses Critiques (Campbell)", styles['Heading2']))
+        elements.append(Spacer(1, 10))
         
-        # 2. Caractéristiques du rotor
-        elements.append(Paragraph("1. Caractéristiques du Modèle", styles['Heading2']))
-        longueur = getattr(rotor, 'L', sum([el.L for el in getattr(rotor, 'shaft_elements', [])]))
+        df_c_clean = df_campbell.copy().astype(str)
+        data_c = [df_c_clean.columns.tolist()] + df_c_clean.values.tolist()
         
-        elements.append(Paragraph(f"<b>Masse totale :</b> {rotor.m:.2f} kg", styles['Normal']))
-        elements.append(Paragraph(f"<b>Longueur totale :</b> {longueur:.3f} m", styles['Normal']))
-        elements.append(Paragraph(f"<b>Nœuds :</b> {len(rotor.nodes)}", styles['Normal']))
+        tc = Table(data_c) 
+        tc.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#2E7D32")), 
+            ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0,0), (-1,0), 10),
+            ('BACKGROUND', (0,1), (-1,-1), colors.whitesmoke),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+        ]))
+        elements.append(tc)
+
+    # 5. Tableau Conformité API 684 (Bordeaux)
+    if df_api is not None and not df_api.empty:
         elements.append(Spacer(1, 15))
+        elements.append(Paragraph("4. Conformité Norme API 684", styles['Heading2']))
         
-        # 3. Tableau de l'Analyse Modale
-        if df_modal is not None and not df_modal.empty:
-            elements.append(Paragraph("2. Analyse Modale (Fréquences et Stabilité)", styles['Heading2']))
-            elements.append(Spacer(1, 10))
-            
-            # Nettoyage des emojis (ReportLab avec police standard ne les gère pas bien)
-            df_clean = df_modal.copy()
-            for col in df_clean.columns:
-                df_clean[col] = df_clean[col].astype(str).str.replace(r"[✅⚠️❌]", "", regex=True).str.strip()
-            
-            # Préparation des données pour ReportLab (Liste de listes)
-            data = [df_clean.columns.tolist()] + df_clean.values.tolist()
-            
-            # Création et style du tableau professionnel
-            t = Table(data) 
-            t.setStyle(TableStyle([
-                ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#1F5C8B")), # Bleu pro pour l'en-tête
-                ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
-                ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-                ('BOTTOMPADDING', (0,0), (-1,0), 10),
-                ('BACKGROUND', (0,1), (-1,-1), colors.whitesmoke),
-                ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
-            ]))
-            elements.append(t)
-            # 4. Nouveau Tableau : Conformité API 684
-        if df_api is not None and not df_api.empty:
-            elements.append(Spacer(1, 15))
-            elements.append(Paragraph("4. Conformité Norme API 684", styles['Heading2']))
-        
-        # Affichage des paramètres globaux
         if api_params:
-            elements.append(Paragraph(f"<b>Vitesse opérationnelle :</b> {api_params['op_rpm']:.0f} RPM", styles['Normal']))
-            elements.append(Paragraph(f"<b>Zone interdite :</b> [{api_params['zl']:.0f} – {api_params['zh']:.0f}] RPM", styles['Normal']))
-            elements.append(Paragraph(f"<b>Score de conformité :</b> {api_params['score']:.0f}%", styles['Normal']))
+            elements.append(Paragraph(f"<b>Vitesse opérationnelle :</b> {float(api_params['op_rpm']):.0f} RPM", styles['Normal']))
+            elements.append(Paragraph(f"<b>Zone interdite :</b> [{float(api_params['zl']):.0f} – {float(api_params['zh']):.0f}] RPM", styles['Normal']))
+            elements.append(Paragraph(f"<b>Score de conformité :</b> {float(api_params['score']):.0f}%", styles['Normal']))
             elements.append(Spacer(1, 10))
         
-        # Nettoyage du tableau (Retrait des emojis ✅❌ qui font crasher la police standard du PDF)
         df_api_clean = df_api.copy().astype(str)
         for col in df_api_clean.columns:
             df_api_clean[col] = df_api_clean[col].str.replace(r"[✅⚠️❌]", "", regex=True).str.strip()
             
         data_api = [df_api_clean.columns.tolist()] + df_api_clean.values.tolist()
         
-        # Création du tableau (En-tête bordeaux pour le différencier des autres)
         t_api = Table(data_api) 
         t_api.setStyle(TableStyle([
-            ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#8B1F1F")), # Bordeaux élégant
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#8B1F1F")), 
             ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
             ('ALIGN', (0,0), (-1,-1), 'CENTER'),
             ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
@@ -694,9 +710,11 @@ def generate_pdf_reportlab(rotor, df_modal=None, df_campbell=None, df_api=None, 
             ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
         ]))
         elements.append(t_api)
-            
-        doc.build(elements)
-        return buffer.getvalue()
+        
+    doc.build(elements)
+    return buffer.getvalue()
+
+
 def _badge(badge_type, label):
     classes = {"gold":"badge-gold","silver":"badge-silver","bronze":"badge-bronze","info":"badge-blue"}
     return f"<span class='badge {classes.get(badge_type,'badge-blue')}'>{label}</span>"
@@ -2297,8 +2315,6 @@ def _render_m6():
                     # Nouvel appel de la fonction avec tous les arguments
                     pdf_bytes = generate_pdf_reportlab(rotor, df_m, df_c, df_api_data, api_p)
                     
-                    # On appelle la fonction ReportLab que nous avons créée précédemment
-                    # pdf_bytes = generate_pdf_reportlab(rotor, df_m)
                     
                     st.success("✅ Rapport généré !")
                     st.download_button(
