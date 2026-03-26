@@ -665,8 +665,8 @@ def generate_pdf_reportlab(rotor, df_modal=None):
             elements.append(t)
             # 4. Nouveau Tableau : Conformité API 684
         if df_api is not None and not df_api.empty:
-        elements.append(Spacer(1, 15))
-        elements.append(Paragraph("4. Conformité Norme API 684", styles['Heading2']))
+            elements.append(Spacer(1, 15))
+            elements.append(Paragraph("4. Conformité Norme API 684", styles['Heading2']))
         
         # Affichage des paramètres globaux
         if api_params:
