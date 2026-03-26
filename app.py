@@ -1378,7 +1378,7 @@ def render_simulation_mode():
 # ── M1 — Constructeur ─────────────────────────────────────────────────────────
 def _render_m1():
     st.subheader("🏗️ M1 — Constructeur de Rotor")
-    st.caption("Bibliothèque de matériaux · Validation temps réel · Export TOML/Python")
+    st.caption("Bibliothèque de matériaux · Validation temps réel")
 
     # 1. Création des 4 onglets principaux
     tab_mat, tab_arbre, tab_disques, tab_paliers = st.tabs([
