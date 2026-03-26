@@ -23,6 +23,7 @@ from typing import Dict, List, Optional, Tuple, Any
 import json
 import io
 import traceback
+import google.generativeai as genai
 
 try:
     import ross as rs
@@ -2371,47 +2372,56 @@ def render_ross_gpt():
 
 
 def _call_ross_gpt(user_msg: str, context: dict, history: list) -> str:
-    """Appel à l'API Anthropic Claude avec contexte ROSS spécialisé."""
+    """Appel à l'API Google Gemini avec contexte ROSS spécialisé."""
+    import json
     try:
-        import anthropic
-        client = anthropic.Anthropic()
+        import google.generativeai as genai
+        import streamlit as st
+        
+        # Vérification de la clé API dans les secrets Streamlit Cloud
+        if "GEMINI_API_KEY" not in st.secrets:
+            return "⚠️ Erreur : La clé GEMINI_API_KEY n'est pas configurée dans les secrets de Streamlit Cloud.\n\n" + _fallback_ross_gpt(user_msg, context)
 
+        # Configuration de l'API avec ta clé
+        genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
+
+        # Le "Cerveau" de ton IA
         system_prompt = f"""Tu es ROSS GPT, un expert spécialisé dans la bibliothèque Python ROSS (Rotordynamic Open-Source Software).
-
 Tu maîtrises parfaitement :
-- La modélisation rotordynamique : ShaftElement (Timoshenko), DiskElement, BearingElement, GearElement, CouplingElement, Material, Probe
-- Toutes les analyses ROSS : run_static(), run_modal(), run_campbell(), run_critical_speed(), run_unbalance_response(), run_freq_response(), run_time_response(), run_crack(), run_misalignment(), run_rubbing()
-- Les packages complémentaires : ROSS-FluidFlow, ROSS-Stochastic
-- La théorie de la dynamique des rotors : MEF, matrices M/K/C/G, Campbell, modes propres, Log Dec, DAF, précession avant/arrière
-- Les normes : API 684, ISO 7919, ISO 1925
+- La modélisation rotordynamique : ShaftElement, DiskElement, BearingElement, Material
+- Toutes les analyses ROSS : run_modal(), run_campbell(), run_unbalance_response(), run_time_response(), run_crack()
+- La théorie de la dynamique des rotors : matrices M/K/C/G, Campbell, modes propres, Log Dec, précession
+- Les normes : API 684, ISO 7919
 
 Contexte du modèle actuellement chargé dans ROSSim Online :
 {json.dumps(context, ensure_ascii=False, indent=2)}
 
 Réponds en français. Fournis du code Python ROSS fonctionnel quand c'est pertinent.
-Sois concis, précis et pédagogique. Indique toujours les unités physiques dans tes réponses."""
+Sois concis, précis et pédagogique. Indique toujours les unités physiques."""
 
-        messages = []
-        for h in history[-6:]:  # Contexte des 6 derniers échanges
-            messages.append({"role": h["role"], "content": h["content"]})
-        messages.append({"role": "user", "content": user_msg})
-
-        response = client.messages.create(
-            model="claude-sonnet-4-6",
-            max_tokens=1000,
-            system=system_prompt,
-            messages=messages,
+        # Configuration du modèle Gemini
+        model = genai.GenerativeModel(
+            model_name="gemini-1.5-flash",
+            system_instruction=system_prompt
         )
-        return response.content[0].text
+
+        # Traduction de ton historique Streamlit vers le format attendu par Gemini
+        gemini_history = []
+        for h in history[-6:]:  # On garde le contexte des 6 derniers échanges
+            # Gemini utilise 'user' et 'model' (au lieu de 'assistant')
+            role = "user" if h["role"] == "user" else "model"
+            gemini_history.append({"role": role, "parts": [h["content"]]})
+
+        # Démarrage de la conversation et envoi du message
+        chat = model.start_chat(history=gemini_history)
+        response = chat.send_message(user_msg)
+
+        return response.text
 
     except ImportError:
-        return _fallback_ross_gpt(user_msg, context)
+        return "⚠️ Erreur : La bibliothèque 'google-generativeai' n'est pas installée.\n\n" + _fallback_ross_gpt(user_msg, context)
     except Exception as e:
-        if "authentication" in str(e).lower() or "api_key" in str(e).lower():
-            return (_fallback_ross_gpt(user_msg, context) +
-                    "\n\n*Note : Pour activer ROSS GPT complet, configurez votre clé API Anthropic.*")
-        return f"❌ Erreur ROSS GPT : {e}\n\n" + _fallback_ross_gpt(user_msg, context)
-
+        return f"❌ Erreur de communication avec l'API Gemini : {str(e)}\n\n" + _fallback_ross_gpt(user_msg, context)
 
 def _fallback_ross_gpt(user_msg: str, context: dict) -> str:
     """Réponses intelligentes pré-programmées sans API (mode offline)."""
