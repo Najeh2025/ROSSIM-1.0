@@ -2372,47 +2372,39 @@ def render_ross_gpt():
 
 
 def _call_ross_gpt(user_msg: str, context: dict, history: list) -> str:
-    """Appel à l'API Google Gemini avec contexte ROSS spécialisé."""
+    """Appel à l'API Google Gemini avec contexte ROSS (Version Ultra-Stable)."""
     import json
     try:
         import google.generativeai as genai
         import streamlit as st
         
-        # Vérification de la clé API dans les secrets Streamlit Cloud
         if "GEMINI_API_KEY" not in st.secrets:
-            return "⚠️ Erreur : La clé GEMINI_API_KEY n'est pas configurée dans les secrets de Streamlit Cloud.\n\n" + _fallback_ross_gpt(user_msg, context)
+            return "⚠️ Erreur : La clé GEMINI_API_KEY n'est pas configurée.\n\n" + _fallback_ross_gpt(user_msg, context)
 
-        # Configuration de l'API avec ta clé
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
 
-        # Le "Cerveau" de ton IA
-        system_prompt = f"""Tu es ROSS GPT, un expert spécialisé dans la bibliothèque Python ROSS (Rotordynamic Open-Source Software).
-Tu maîtrises parfaitement :
-- La modélisation rotordynamique : ShaftElement, DiskElement, BearingElement, Material
-- Toutes les analyses ROSS : run_modal(), run_campbell(), run_unbalance_response(), run_time_response(), run_crack()
-- La théorie de la dynamique des rotors : matrices M/K/C/G, Campbell, modes propres, Log Dec, précession
-- Les normes : API 684, ISO 7919
-
-Contexte du modèle actuellement chargé dans ROSSim Online :
+        # Le contexte injecté
+        system_prompt = f"""Tu es ROSS GPT, un expert spécialisé dans la bibliothèque Python ROSS.
+Tu maîtrises parfaitement : ShaftElement, DiskElement, BearingElement, Campbell, modes propres, instabilités.
+Contexte du modèle actuellement chargé :
 {json.dumps(context, ensure_ascii=False, indent=2)}
+Réponds en français, sois pédagogique et fournis du code ROSS fonctionnel."""
 
-Réponds en français. Fournis du code Python ROSS fonctionnel quand c'est pertinent.
-Sois concis, précis et pédagogique. Indique toujours les unités physiques."""
+        # Utilisation du modèle universel (ne génère jamais de 404)
+        model = genai.GenerativeModel("gemini-pro")
 
-        # Configuration du modèle Gemini
-        model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash-latest", # <-- Le changement est ici !
-            system_instruction=system_prompt
-        )
+        # ASTUCE : On glisse le contexte comme étant le tout premier échange de la conversation
+        gemini_history = [
+            {"role": "user", "parts": [system_prompt]},
+            {"role": "model", "parts": ["C'est bien noté. Je suis ROSS GPT, prêt à analyser vos rotors et à générer du code Python !"]}
+        ]
 
-        # Traduction de ton historique Streamlit vers le format attendu par Gemini
-        gemini_history = []
-        for h in history[-6:]:  # On garde le contexte des 6 derniers échanges
-            # Gemini utilise 'user' et 'model' (au lieu de 'assistant')
+        # On ajoute le reste de l'historique
+        for h in history[-6:]:  
             role = "user" if h["role"] == "user" else "model"
             gemini_history.append({"role": role, "parts": [h["content"]]})
 
-        # Démarrage de la conversation et envoi du message
+        # Démarrage et envoi
         chat = model.start_chat(history=gemini_history)
         response = chat.send_message(user_msg)
 
@@ -2421,8 +2413,7 @@ Sois concis, précis et pédagogique. Indique toujours les unités physiques."""
     except ImportError:
         return "⚠️ Erreur : La bibliothèque 'google-generativeai' n'est pas installée.\n\n" + _fallback_ross_gpt(user_msg, context)
     except Exception as e:
-        return f"❌ Erreur de communication avec l'API Gemini : {str(e)}\n\n" + _fallback_ross_gpt(user_msg, context)
-
+        return f"❌ Erreur Gemini : {str(e)}\n\n" + _fallback_ross_gpt(user_msg, context)
 def _fallback_ross_gpt(user_msg: str, context: dict) -> str:
     """Réponses intelligentes pré-programmées sans API (mode offline)."""
     msg_lower = user_msg.lower()
