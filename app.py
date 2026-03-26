@@ -1601,22 +1601,25 @@ def _render_m2():
 
         modal = _CACHE.get("free_modal")
         if modal:
-            n_m = min(6, max(1, len(modal.wn)//2))
+            # On récupère le nombre exact de modes trouvés (avec une limite de 20 max par sécurité)
+            n_m = min(20, len(modal.wn)) 
+            
             mode_i = st.selectbox("Mode à visualiser :", range(n_m),
                                    format_func=lambda x: f"Mode {x+1} — {modal.wn[x]/(2*np.pi):.2f} Hz",
                                    key="m2_mode")
+                                   
             for m in ["plot_mode_3d", "plot_mode_shape"]:
                 if hasattr(modal, m):
                     try:
                         st.plotly_chart(getattr(modal, m)(mode=mode_i), use_container_width=True)
                         break
                     except Exception: continue
+                    
             # Export CSV
             df_modal = _modal_table(modal)
             st.download_button("📥 Export CSV fréquences",
                                 data=df_modal.to_csv(index=False).encode(),
                                 file_name="frequences_modales.csv", mime="text/csv")
-
 
 # ── M3 — Campbell & Stabilité ─────────────────────────────────────────────────
 def _render_m3():
