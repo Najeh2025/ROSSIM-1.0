@@ -540,7 +540,55 @@ class SimulationEngine:
     @property
     def last_error(self): return self._err
 
-
+    def generate_pdf_reportlab(rotor, df_modal=None):
+        """Génère un rapport PDF avancé avec ReportLab."""
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=A4)
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # 1. Titre
+        elements.append(Paragraph("Rapport de Simulation Rotordynamique", styles['Title']))
+        elements.append(Spacer(1, 15))
+        
+        # 2. Caractéristiques du rotor
+        elements.append(Paragraph("1. Caractéristiques du Modèle", styles['Heading2']))
+        longueur = getattr(rotor, 'L', sum([el.L for el in getattr(rotor, 'shaft_elements', [])]))
+        
+        elements.append(Paragraph(f"<b>Masse totale :</b> {rotor.m:.2f} kg", styles['Normal']))
+        elements.append(Paragraph(f"<b>Longueur totale :</b> {longueur:.3f} m", styles['Normal']))
+        elements.append(Paragraph(f"<b>Nœuds :</b> {len(rotor.nodes)}", styles['Normal']))
+        elements.append(Spacer(1, 15))
+        
+        # 3. Tableau de l'Analyse Modale
+        if df_modal is not None and not df_modal.empty:
+            elements.append(Paragraph("2. Analyse Modale (Fréquences et Stabilité)", styles['Heading2']))
+            elements.append(Spacer(1, 10))
+            
+            # Nettoyage des emojis (ReportLab avec police standard ne les gère pas bien)
+            df_clean = df_modal.copy()
+            for col in df_clean.columns:
+                df_clean[col] = df_clean[col].astype(str).str.replace(r"[✅⚠️❌]", "", regex=True).str.strip()
+            
+            # Préparation des données pour ReportLab (Liste de listes)
+            data = [df_clean.columns.tolist()] + df_clean.values.tolist()
+            
+            # Création et style du tableau professionnel
+            t = Table(data) 
+            t.setStyle(TableStyle([
+                ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#1F5C8B")), # Bleu pro pour l'en-tête
+                ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+                ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+                ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+                ('BOTTOMPADDING', (0,0), (-1,0), 10),
+                ('BACKGROUND', (0,1), (-1,-1), colors.whitesmoke),
+                ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+            ]))
+            elements.append(t)
+            
+        doc.build(elements)
+        return buffer.getvalue()
+# =============================================================================
 class ReportGenerator:
     """Export HTML, CSV, code Python (CdC §2.8)."""
 
@@ -613,55 +661,6 @@ class ReportGenerator:
             "camp.plot()",
         ]
         return "\n".join(lines)
-        
-    def generate_pdf_reportlab(rotor, df_modal=None):
-        """Génère un rapport PDF avancé avec ReportLab."""
-        buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=A4)
-        elements = []
-        styles = getSampleStyleSheet()
-        
-        # 1. Titre
-        elements.append(Paragraph("Rapport de Simulation Rotordynamique", styles['Title']))
-        elements.append(Spacer(1, 15))
-        
-        # 2. Caractéristiques du rotor
-        elements.append(Paragraph("1. Caractéristiques du Modèle", styles['Heading2']))
-        longueur = getattr(rotor, 'L', sum([el.L for el in getattr(rotor, 'shaft_elements', [])]))
-        
-        elements.append(Paragraph(f"<b>Masse totale :</b> {rotor.m:.2f} kg", styles['Normal']))
-        elements.append(Paragraph(f"<b>Longueur totale :</b> {longueur:.3f} m", styles['Normal']))
-        elements.append(Paragraph(f"<b>Nœuds :</b> {len(rotor.nodes)}", styles['Normal']))
-        elements.append(Spacer(1, 15))
-        
-        # 3. Tableau de l'Analyse Modale
-        if df_modal is not None and not df_modal.empty:
-            elements.append(Paragraph("2. Analyse Modale (Fréquences et Stabilité)", styles['Heading2']))
-            elements.append(Spacer(1, 10))
-            
-            # Nettoyage des emojis (ReportLab avec police standard ne les gère pas bien)
-            df_clean = df_modal.copy()
-            for col in df_clean.columns:
-                df_clean[col] = df_clean[col].astype(str).str.replace(r"[✅⚠️❌]", "", regex=True).str.strip()
-            
-            # Préparation des données pour ReportLab (Liste de listes)
-            data = [df_clean.columns.tolist()] + df_clean.values.tolist()
-            
-            # Création et style du tableau professionnel
-            t = Table(data) 
-            t.setStyle(TableStyle([
-                ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#1F5C8B")), # Bleu pro pour l'en-tête
-                ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
-                ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-                ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
-                ('BOTTOMPADDING', (0,0), (-1,0), 10),
-                ('BACKGROUND', (0,1), (-1,-1), colors.whitesmoke),
-                ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
-            ]))
-            elements.append(t)
-            
-        doc.build(elements)
-        return buffer.getvalue()
 
 # =============================================================================
 # HELPERS UI
