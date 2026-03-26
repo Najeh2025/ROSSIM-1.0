@@ -24,6 +24,11 @@ import json
 import io
 import traceback
 import google.generativeai as genai
+from reportlab.lib.pagesizes import A4
+from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
+import io
 
 try:
     import ross as rs
@@ -608,7 +613,55 @@ class ReportGenerator:
             "camp.plot()",
         ]
         return "\n".join(lines)
-
+        
+    def generate_pdf_reportlab(rotor, df_modal=None):
+    """Génère un rapport PDF avancé avec ReportLab."""
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4)
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # 1. Titre
+    elements.append(Paragraph("Rapport de Simulation Rotordynamique", styles['Title']))
+    elements.append(Spacer(1, 15))
+    
+    # 2. Caractéristiques du rotor
+    elements.append(Paragraph("1. Caractéristiques du Modèle", styles['Heading2']))
+    longueur = getattr(rotor, 'L', sum([el.L for el in getattr(rotor, 'shaft_elements', [])]))
+    
+    elements.append(Paragraph(f"<b>Masse totale :</b> {rotor.m:.2f} kg", styles['Normal']))
+    elements.append(Paragraph(f"<b>Longueur totale :</b> {longueur:.3f} m", styles['Normal']))
+    elements.append(Paragraph(f"<b>Nœuds :</b> {len(rotor.nodes)}", styles['Normal']))
+    elements.append(Spacer(1, 15))
+    
+    # 3. Tableau de l'Analyse Modale
+    if df_modal is not None and not df_modal.empty:
+        elements.append(Paragraph("2. Analyse Modale (Fréquences et Stabilité)", styles['Heading2']))
+        elements.append(Spacer(1, 10))
+        
+        # Nettoyage des emojis (ReportLab avec police standard ne les gère pas bien)
+        df_clean = df_modal.copy()
+        for col in df_clean.columns:
+            df_clean[col] = df_clean[col].astype(str).str.replace(r"[✅⚠️❌]", "", regex=True).str.strip()
+        
+        # Préparation des données pour ReportLab (Liste de listes)
+        data = [df_clean.columns.tolist()] + df_clean.values.tolist()
+        
+        # Création et style du tableau professionnel
+        t = Table(data) 
+        t.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#1F5C8B")), # Bleu pro pour l'en-tête
+            ('TEXTCOLOR', (0,0), (-1,0), colors.whitesmoke),
+            ('ALIGN', (0,0), (-1,-1), 'CENTER'),
+            ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+            ('BOTTOMPADDING', (0,0), (-1,0), 10),
+            ('BACKGROUND', (0,1), (-1,-1), colors.whitesmoke),
+            ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
+        ]))
+        elements.append(t)
+        
+    doc.build(elements)
+    return buffer.getvalue()
 
 # =============================================================================
 # HELPERS UI
@@ -1354,9 +1407,8 @@ def _run_tutorial_step(tut_id, step_idx, step, tut):
                 else:
                     st.warning("Complétez l'étape 1 d'abord")
 
-
 # =============================================================================
-# PAGE : MODE SIMULATION — M1 à M5
+# PAGE : MODE SIMULATION — M1 à M6
 # =============================================================================
 def render_simulation_mode():
     st.title("🔬 Mode Simulation — Analyses Complètes")
@@ -1367,6 +1419,7 @@ def render_simulation_mode():
         "M3 📈 Campbell & Stabilité",
         "M4 🌀 Balourd & H(jω)",
         "M5 ⏱️ Temporel & Défauts",
+        "M6 📄 Rapport & Export"  # <--- Ajout de la nouvelle option ici
     ])
 
     if "M1" in module:   _render_m1()
@@ -1374,6 +1427,7 @@ def render_simulation_mode():
     elif "M3" in module: _render_m3()
     elif "M4" in module: _render_m4()
     elif "M5" in module: _render_m5()
+    elif "M6" in module: _render_m6()  # <--- Appel de notre nouvelle fonction
 
 
 # ── M1 — Constructeur ─────────────────────────────────────────────────────────
@@ -1618,6 +1672,7 @@ def _render_m2():
                     
             # Export CSV
             df_modal = _modal_table(modal)
+            st.session_state["df_modal"] = df_modal
             st.download_button("📥 Export CSV fréquences",
                                 data=df_modal.to_csv(index=False).encode(),
                                 file_name="frequences_modales.csv", mime="text/csv")
@@ -2147,7 +2202,64 @@ def _render_m5():
                              "le contact génère des sous-harmoniques (0.5X, 0.33X) et peut "
                              "conduire à un comportement chaotique.")
        
+# =============================================================================
+# M6 — RAPPORT & EXPORT PDF
+# =============================================================================
+def _render_m6():
+    st.subheader("📄 M6 — Générateur de Rapport Final")
+    st.caption("Sélectionnez les modules à inclure dans votre document de synthèse.")
 
+    # On récupère le rotor
+    rotor = _CACHE.get("free_rotor")
+
+    if not rotor:
+        st.info("⚠️ Veuillez d'abord construire un rotor dans le module M1 avant de générer un rapport.")
+        return
+
+    st.markdown("### 🛠️ Contenu du rapport")
+    
+    # 1. Sélection des éléments avec des cases à cocher
+    col1, col2 = st.columns(2)
+    with col1:
+        # La géométrie est toujours incluse par défaut
+        st.checkbox("⚙️ Caractéristiques du Rotor (Masse, Géométrie, Nœuds)", value=True, disabled=True)
+        
+        # On vérifie si l'analyse modale a été faite (si df_modal existe en mémoire)
+        has_modal = "df_modal" in st.session_state
+        inc_modal = st.checkbox("📊 Analyse Modale (Fréquences et Stabilité)", value=has_modal, disabled=not has_modal)
+        
+        # (Espace prévu pour tes futurs modules)
+        has_campbell = "campbell_data" in st.session_state
+        inc_campbell = st.checkbox("📈 Diagramme de Campbell", value=has_campbell, disabled=True) # Désactivé pour l'instant
+
+    with col2:
+        st.info("💡 Les modules grisés nécessitent d'avoir lancé les calculs correspondants (ex: M2) au préalable pour être inclus dans le rapport.")
+
+    st.markdown("---")
+
+    # 2. Bouton de génération
+    col_btn, col_vide = st.columns([1, 2])
+    with col_btn:
+        if st.button("🚀 Générer le Rapport PDF", type="primary", use_container_width=True):
+            with st.spinner("Création du document avec ReportLab..."):
+                try:
+                    # On récupère les données sélectionnées
+                    df_m = st.session_state["df_modal"] if inc_modal else None
+                    
+                    # On appelle la fonction ReportLab que nous avons créée précédemment
+                    pdf_bytes = generate_pdf_reportlab(rotor, df_m)
+                    
+                    st.success("✅ Rapport généré !")
+                    st.download_button(
+                        label="📥 Télécharger mon PDF",
+                        data=pdf_bytes,
+                        file_name="Rapport_Simulation_ROSS.pdf",
+                        mime="application/pdf",
+                        use_container_width=True
+                    )
+                except Exception as e:
+                    st.error(f"❌ Erreur lors de la génération : {e}")
+                    
 # =============================================================================
 # PAGE : BIBLIOTHÈQUE ROSS
 # =============================================================================
