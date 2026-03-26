@@ -2401,7 +2401,7 @@ Sois concis, précis et pédagogique. Indique toujours les unités physiques."""
 
         # Configuration du modèle Gemini
         model = genai.GenerativeModel(
-            model_name="gemini-1.5-flash",
+            model_name="gemini-1.5-flash-latest", # <-- Le changement est ici !
             system_instruction=system_prompt
         )
 
