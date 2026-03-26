@@ -931,15 +931,23 @@ def render_dashboard():
     st.markdown("---")
     st.markdown("### 🏭 Exemple Industriel ROSS (Compresseur Centrifuge)")
     if ROSS_AVAILABLE:
-        if st.button("🔄 Charger rs.compressor_example()", key="load_compressor"):
-            try:
-                rotor = rs.compressor_example()
-                _CACHE["free_rotor"] = rotor
-                st.session_state["sim_count"] = st.session_state.get("sim_count",0) + 1
-                st.success(f"✅ Compresseur chargé — {len(rotor.nodes)} nœuds, {rotor.m:.1f} kg")
-                st.info("👉 Allez dans 🔬 Mode Simulation pour analyser ce rotor industriel")
-            except Exception as e:
-                st.error(f"Erreur chargement compresseur : {e}")
+        if st.button("Charger rs.compressor_example()"):
+            with st.spinner("Chargement du compresseur industriel..."):
+                comp = rs.compressor_example()
+                
+                # On sauvegarde le compresseur
+                st.session_state["rotor"] = comp
+                
+                # --- NOUVEAU : ON PLANTE LE DRAPEAU ---
+                st.session_state["rotor_is_compressor"] = True
+                # --------------------------------------
+                
+                if "engine" in st.session_state:
+                    del st.session_state["engine"]
+                global _CACHE
+                _CACHE.clear()
+            
+        st.success(f"✅ Compresseur chargé — {comp.ndof//4} nœuds")
 
 # =============================================================================
 # PAGE : MODE PÉDAGOGIQUE — TUTORIELS
