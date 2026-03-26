@@ -2267,9 +2267,9 @@ def _render_m6():
         has_modal = "df_modal" in st.session_state
         inc_modal = st.checkbox("📊 Analyse Modale (Fréquences et Stabilité)", value=has_modal, disabled=not has_modal)
         
-        # (Espace prévu pour tes futurs modules)
-        has_campbell = "campbell_data" in st.session_state
-        inc_campbell = st.checkbox("📈 Diagramme de Campbell", value=has_campbell, disabled=True) # Désactivé pour l'instant
+        # --- LIGNES CORRIGÉES ---
+        has_campbell = "df_campbell" in st.session_state
+        inc_campbell = st.checkbox("📈 Vitesses Critiques (Campbell)", value=has_campbell, disabled=not has_campbell)
         
         # (Dans la section des cases à cocher de _render_m6)
         has_api = "df_api" in st.session_state
