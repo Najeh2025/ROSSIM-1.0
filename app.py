@@ -944,7 +944,6 @@ def render_dashboard():
                 
                 if "engine" in st.session_state:
                     del st.session_state["engine"]
-                global _CACHE
                 _CACHE.clear()
             
         st.success(f"✅ Compresseur chargé — {comp.ndof//4} nœuds")
