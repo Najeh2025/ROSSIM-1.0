@@ -1685,7 +1685,7 @@ def _render_m1():
                     # On assemble le tout en ajoutant les point_masses
                     rotor = rs.Rotor(shaft, disks, bears, point_mass_elements=point_masses)
                     
-                    rotor = rs.Rotor(shaft, disks, bears)
+                   
                     _CACHE["free_rotor"] = rotor
                     _CACHE["free_mat_props"] = props.copy()
                     
