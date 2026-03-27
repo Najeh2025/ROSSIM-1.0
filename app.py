@@ -1606,23 +1606,36 @@ def _render_m1():
                 
         col_table_p, col_vide_p2 = st.columns([9, 1]) 
         with col_table_p:
-            # Configuration de la colonne Type comme un menu déroulant
+            # 1. Configuration avancée des colonnes pour forcer le zéro par défaut
             config_bear = {
                 "Type": st.column_config.SelectboxColumn(
                     "Type d'élément",
                     help="Palier, Joint (Seal), Roulement, ou Masse ponctuelle",
                     options=["Palier", "Joint", "Roulement", "Masse"],
-                    required=True
-                )
+                    required=True,
+                    default="Palier"
+                ),
+                "kxx": st.column_config.NumberColumn("kxx", default=0.0),
+                "kyy": st.column_config.NumberColumn("kyy", default=0.0),
+                "kxy": st.column_config.NumberColumn("kxy", default=0.0),
+                "cxx": st.column_config.NumberColumn("cxx", default=0.0),
+                "cyy": st.column_config.NumberColumn("cyy", default=0.0),
+                "m (kg)": st.column_config.NumberColumn("m (kg)", default=0.0)
             }
+            
             st.info("💡 **Astuce :** Choisissez 'Masse' pour ajouter le poids d'un capteur ou d'un demi-accouplement sans ajouter de rigidité. Remplissez la colonne 'm (kg)'.")
-            st.session_state.df_bear = st.data_editor(
+            
+            # 2. Affichage du tableau interactif
+            df_edited = st.data_editor(
                 st.session_state.df_bear, 
                 column_config=config_bear,
                 num_rows="dynamic", 
                 key="m1_bear", 
                 use_container_width=True
             )
+            
+            # 3. Nettoyage absolu (remplace instantanément les "None" ou "NaN" restants par des 0)
+            st.session_state.df_bear = df_edited.fillna(0.0)
 
     st.markdown("---")
 
