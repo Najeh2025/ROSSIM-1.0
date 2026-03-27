@@ -1501,8 +1501,8 @@ def _render_m1():
         st.session_state.df_disk = pd.DataFrame([{"nœud":2,"id (m)":0.05,"od (m)":0.25,"largeur (m)":0.07}])
         
         st.session_state.df_bear = pd.DataFrame([
-            {"nœud":0, "kxx":1e6,"kyy":1e6,"kxy":0,"cxx":0,"cyy":0},
-            {"nœud":5, "kxx":1e6,"kyy":1e6,"kxy":0,"cxx":0,"cyy":0},
+            {"nœud":0, "Type":"Palier", "kxx":1e6,"kyy":1e6,"kxy":0.0,"cxx":0.0,"cyy":0.0, "m (kg)":0.0},
+            {"nœud":5, "Type":"Palier", "kxx":1e6,"kyy":1e6,"kxy":0.0,"cxx":0.0,"cyy":0.0, "m (kg)":0.0},
         ])
 
     # Si c'est la première fois qu'on ouvre la page, on initialise
@@ -1600,13 +1600,29 @@ def _render_m1():
                 n_el_est = max(1, len(st.session_state.df_shaft) - 1)
                 # Si l'utilisateur choisit un preset, on écrase le tableau
                 st.session_state.df_bear = pd.DataFrame([
-                    {"nœud":0, "kxx":p["kxx"],"kyy":p["kyy"],"kxy":p["kxy"],"cxx":p["cxx"],"cyy":p["cyy"]},
-                    {"nœud":n_el_est, "kxx":p["kxx"],"kyy":p["kyy"],"kxy":p["kxy"],"cxx":p["cxx"],"cyy":p["cyy"]},
+                    {"nœud":0, "Type":"Palier", "kxx":p["kxx"],"kyy":p["kyy"],"kxy":p["kxy"],"cxx":p["cxx"],"cyy":p["cyy"], "m (kg)":0.0},
+                    {"nœud":n_el_est, "Type":"Palier", "kxx":p["kxx"],"kyy":p["kyy"],"kxy":p["kxy"],"cxx":p["cxx"],"cyy":p["cyy"], "m (kg)":0.0},
                 ])
                 
         col_table_p, col_vide_p2 = st.columns([9, 1]) 
         with col_table_p:
-            st.session_state.df_bear = st.data_editor(st.session_state.df_bear, num_rows="dynamic", key="m1_bear", use_container_width=True)
+            # Configuration de la colonne Type comme un menu déroulant
+            config_bear = {
+                "Type": st.column_config.SelectboxColumn(
+                    "Type d'élément",
+                    help="Palier, Joint (Seal), Roulement, ou Masse ponctuelle",
+                    options=["Palier", "Joint", "Roulement", "Masse"],
+                    required=True
+                )
+            }
+            st.info("💡 **Astuce :** Choisissez 'Masse' pour ajouter le poids d'un capteur ou d'un demi-accouplement sans ajouter de rigidité. Remplissez la colonne 'm (kg)'.")
+            st.session_state.df_bear = st.data_editor(
+                st.session_state.df_bear, 
+                column_config=config_bear,
+                num_rows="dynamic", 
+                key="m1_bear", 
+                use_container_width=True
+            )
 
     st.markdown("---")
 
@@ -1643,9 +1659,31 @@ def _render_m1():
                              width=float(r["largeur (m)"]), i_d=float(r["id (m)"]), o_d=float(r["od (m)"]))
                              for r in st.session_state.df_disk.to_dict('records')]
                              
-                    bears = [rs.BearingElement(n=int(r["nœud"]), kxx=float(r["kxx"]), kyy=float(r["kyy"]),
-                              kxy=float(r["kxy"]), kyx=-float(r["kxy"]), cxx=float(r["cxx"]), cyy=float(r["cyy"]))
-                             for r in st.session_state.df_bear.to_dict('records')]
+                    bears = []
+                    point_masses = []
+                    
+                    for r in st.session_state.df_bear.to_dict('records'):
+                        n = int(r["nœud"])
+                        e_type = r.get("Type", "Palier")
+                        
+                        if e_type == "Masse":
+                            # C'est une masse ponctuelle
+                            m_val = float(r.get("m (kg)", 0.0))
+                            point_masses.append(rs.PointMass(n=n, m=m_val))
+                        else:
+                            # C'est un palier, joint ou roulement
+                            kxx = float(r["kxx"]); kyy = float(r["kyy"]); kxy = float(r["kxy"])
+                            cxx = float(r["cxx"]); cyy = float(r["cyy"])
+                            
+                            if e_type == "Joint":
+                                bears.append(rs.SealElement(n=n, kxx=kxx, kyy=kyy, kxy=kxy, kyx=-kxy, cxx=cxx, cyy=cyy))
+                            elif e_type == "Roulement":
+                                bears.append(rs.RollerBearingElement(n=n, kxx=kxx, kyy=kyy, kxy=kxy, kyx=-kxy, cxx=cxx, cyy=cyy))
+                            else:
+                                bears.append(rs.BearingElement(n=n, kxx=kxx, kyy=kyy, kxy=kxy, kyx=-kxy, cxx=cxx, cyy=cyy))
+                    
+                    # On assemble le tout en ajoutant les point_masses
+                    rotor = rs.Rotor(shaft, disks, bears, point_mass_elements=point_masses)
                     
                     rotor = rs.Rotor(shaft, disks, bears)
                     _CACHE["free_rotor"] = rotor
