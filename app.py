@@ -1803,10 +1803,13 @@ def _render_m2():
                         st.warning("⚠️ L'affichage du moment fléchissant n'est pas reconnu.")
                 
                 elif "Effort" in plot_choice:
+                    # Test des différents noms de méthodes selon la version de ROSS
                     if hasattr(static, "plot_shear_force"):
                         fig = static.plot_shear_force()
+                    elif hasattr(static, "plot_shear"):
+                        fig = static.plot_shear()
                     else:
-                        st.warning("⚠️ L'affichage de l'effort tranchant n'est pas reconnu.")
+                        st.info("ℹ️ Le graphique de l'effort tranchant n'est malheureusement pas disponible dans la version de la bibliothèque ROSS actuellement installée sur ce serveur.")
 
                 # Si une figure a été générée avec succès, on l'affiche
                 if fig is not None:
