@@ -3051,7 +3051,7 @@ def render_about_page():
         
         st.markdown("### 👨‍💻 Le Créateur")
         st.write("""
-        Développée par ** Pr. Najeh Ben Guedria **, cette application s'inscrit dans le cadre de travaux de recherche scientifiques et pédagogiques en ingénierie. 
+        Développée par **Pr. Najeh Ben Guedria**, cette application s'inscrit dans le cadre de travaux de recherche scientifiques et pédagogiques en ingénierie. 
         
         L'objectif de ce projet est de démocratiser l'accès aux outils de simulation vibratoire en fournissant une plateforme à la fois pédagogique pour les étudiants et performante pour les ingénieurs. 
         
