@@ -991,7 +991,7 @@ def render_dashboard():
 
     st.markdown("---")
 
-    # --- ACCÈS RAPIDE AUX MODULES (Cliquables + M6 Renommé) ---
+# --- ACCÈS RAPIDE AUX MODULES (Cliquables + M6 Renommé) ---
     st.markdown("### 🚀 Accès Rapide aux Modules")
     modules = [
         ("M1", "🏗️ Constructeur", "Géométrie, Matériaux, Paliers"),
@@ -999,20 +999,24 @@ def render_dashboard():
         ("M3", "📈 Campbell", "Stabilité, Vitesses critiques, API"),
         ("M4", "🌀 Balourd & H(jω)", "Bode, Nyquist, Norme ISO 1940"),
         ("M5", "⏱️ Temporel", "Défauts, Cascade 3D (Waterfall)"),
-        ("M6", "📄 Rapport & Export", "Génération du document PDF final"), # <- Correction M6
+        ("M6", "📄 Rapport & Export", "Génération du document PDF final"),
     ]
     
+    # NOUVEAU : Fonction Callback pour changer de page sans faire planter Streamlit
+    def navigate_to_module(target_id):
+        st.session_state["nav_page"] = "🔬 Mode Simulation"
+        st.session_state["sim_module"] = target_id
+
     cols = st.columns(3)
     for i, (m_id, title, desc) in enumerate(modules):
         with cols[i % 3]:
             # Design de la carte HTML
             st.markdown(f"<div style='background:#f8f9fa; padding:10px 15px; border-radius:6px; border-left:4px solid #1F5C8B; margin-bottom:5px;'>"
                         f"<b style='font-size:1.1em;'>{m_id} {title}</b><br><span style='font-size:0.85em; color:#666;'>{desc}</span></div>", unsafe_allow_html=True)
-            # Le vrai bouton Streamlit juste en dessous
-            if st.button(f"Ouvrir {m_id}", key=f"btn_dash_{m_id}", use_container_width=True):
-                st.session_state["nav_page"] = "🔬 Mode Simulation"
-                st.session_state["sim_module"] = m_id
-                st.rerun()
+            
+            # NOUVEAU : Utilisation de on_click au lieu de if st.button(...)
+            st.button(f"Ouvrir {m_id}", key=f"btn_dash_{m_id}", use_container_width=True, 
+                      on_click=navigate_to_module, args=(m_id,))
 
     st.markdown("---")
     
