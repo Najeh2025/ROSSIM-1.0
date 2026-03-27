@@ -623,7 +623,7 @@ class ReportGenerator:
 # =============================================================================
 # HELPERS UI
 # =============================================================================
-def generate_pdf_reportlab(rotor, df_modal=None, df_campbell=None, df_api=None, api_params=None):
+def generate_pdf_reportlab(rotor, df_modal=None, df_campbell=None, df_api=None, api_params=None, img_rotor=None, img_campbell=None):
     """Génère un rapport PDF avancé avec ReportLab."""
     buffer = io.BytesIO()
     doc = SimpleDocTemplate(buffer, pagesize=A4)
@@ -642,6 +642,10 @@ def generate_pdf_reportlab(rotor, df_modal=None, df_campbell=None, df_api=None, 
     elements.append(Paragraph(f"<b>Longueur totale :</b> {longueur:.3f} m", styles['Normal']))
     elements.append(Paragraph(f"<b>Nœuds :</b> {len(rotor.nodes)}", styles['Normal']))
     elements.append(Spacer(1, 15))
+    if img_rotor:
+        img_io = io.BytesIO(img_rotor)
+        elements.append(RLImage(img_io, width=450, height=250))
+        elements.append(Spacer(1, 15))
     
     # 3. Tableau de l'Analyse Modale (Bleu)
     if df_modal is not None and not df_modal.empty:
@@ -686,6 +690,10 @@ def generate_pdf_reportlab(rotor, df_modal=None, df_campbell=None, df_api=None, 
             ('GRID', (0,0), (-1,-1), 0.5, colors.grey),
         ]))
         elements.append(tc)
+        if img_campbell:
+            elements.append(Spacer(1, 15))
+            img_io = io.BytesIO(img_campbell)
+            elements.append(RLImage(img_io, width=450, height=290))
 
     # 5. Tableau Conformité API 684 (Bordeaux)
     if df_api is not None and not df_api.empty:
@@ -1739,8 +1747,13 @@ def _render_m1():
         L_totale = sum(float(r.get("L (m)", 0)) for r in st.session_state.df_shaft.to_dict('records'))
         col3.metric("Longueur", f"{L_totale:.3f} m")
         
-        try: st.plotly_chart(rotor_cache.plot_rotor(), use_container_width=True)
-        except Exception: st.info("Visualisation 3D non disponible.")
+        try: 
+            fig_rotor = rotor_cache.plot_rotor()
+            st.plotly_chart(fig_rotor, use_container_width=True)
+            # --- CAPTURE IMAGE POUR LE PDF ---
+            st.session_state["img_rotor"] = fig_rotor.to_image(format="png", width=700, height=400)
+        except Exception as e: 
+            st.info(f"Visualisation 3D non disponible. {e}")
 
 # ── M2 — Statique & Modal ─────────────────────────────────────────────────────
 def _render_m2():
@@ -1886,6 +1899,9 @@ def _render_m3():
                     fig_camp.add_vline(x=op_rpm, line_dash="dash", line_color="darkred", annotation_text=" Vitesse Op.")
                     
                     st.plotly_chart(fig_camp, use_container_width=True)
+                    st.plotly_chart(fig_camp, use_container_width=True)
+                    # --- CAPTURE IMAGE POUR LE PDF ---
+                    st.session_state["img_campbell_plot"] = fig_camp.to_image(format="png", width=700, height=450)
                 except Exception: 
                     _plot_campbell_fallback(camp, vmax, npts)
                     
@@ -2536,13 +2552,18 @@ def _render_m6():
                     # On récupère les données sélectionnées
                     df_m = st.session_state["df_modal"] if inc_modal else None
                     # Récupération conditionnelle
-                    df_m = st.session_state["df_modal"] if inc_modal else None
+                    # 1. Récupération des données textuelles (Tableaux)
+                    df_m = st.session_state.get("df_modal") if inc_modal else None
                     df_c = st.session_state.get("df_campbell") if inc_campbell else None
-                    df_api_data = st.session_state["df_api"] if inc_api else None
-                    api_p = st.session_state["api_params"] if inc_api else None
+                    df_api_data = st.session_state.get("df_api") if inc_api else None
+                    api_p = st.session_state.get("api_params") if inc_api else None
                     
-                    # Nouvel appel de la fonction avec tous les arguments
-                    pdf_bytes = generate_pdf_reportlab(rotor, df_m, df_c, df_api_data, api_p)
+                    # 2. NOUVEAU : Récupération des images (Photos)
+                    img_r = st.session_state.get("img_rotor")
+                    img_c = st.session_state.get("img_campbell_plot") if inc_campbell else None
+                    
+                    # 3. NOUVEAU : Appel de la fonction avec les 7 arguments
+                    pdf_bytes = generate_pdf_reportlab(rotor, df_m, df_c, df_api_data, api_p, img_r, img_c)
                     
                     
                     st.success("✅ Rapport généré !")
