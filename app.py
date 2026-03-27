@@ -1776,40 +1776,25 @@ def _render_m2():
         if static:
             st.success("✅ Analyse statique terminée !")
             
-            # Le choix de l'utilisateur
+            # Le choix de l'utilisateur avec la 4ème option (Corps Libre)
             plot_choice = st.radio(
                 "Sélectionnez le diagramme à afficher :",
-                ["📐 Déformée de l'arbre", "🔄 Moment Fléchissant", "✂️ Effort Tranchant"],
+                ["📐 Déformée de l'arbre", "🔄 Moment Fléchissant", "✂️ Effort Tranchant", "⚖️ Diagramme du Corps Libre"],
                 horizontal=True,
                 key="m2_stat_choice"
             )
             
-            # 3. Affichage conditionnel selon le choix (avec compatibilité multi-versions)
+            # 3. Affichage conditionnel (avec les méthodes exactes de l'API ROSS)
             try:
                 fig = None
                 if "Déformée" in plot_choice:
-                    # Test des différentes méthodes selon la version de ROSS
-                    if hasattr(static, "plot_deformation"):
-                        fig = static.plot_deformation()
-                    elif hasattr(static, "plot_deflected_shape"):
-                        fig = static.plot_deflected_shape()
-                    else:
-                        st.warning("⚠️ L'affichage de la déformée n'est pas reconnu par cette version de ROSS.")
-                
+                    fig = static.plot_deformation()
                 elif "Moment" in plot_choice:
-                    if hasattr(static, "plot_bending_moment"):
-                        fig = static.plot_bending_moment()
-                    else:
-                        st.warning("⚠️ L'affichage du moment fléchissant n'est pas reconnu.")
-                
+                    fig = static.plot_bending_moment()
                 elif "Effort" in plot_choice:
-                    # Test des différents noms de méthodes selon la version de ROSS
-                    if hasattr(static, "plot_shear_force"):
-                        fig = static.plot_shear_force()
-                    elif hasattr(static, "plot_shear"):
-                        fig = static.plot_shear()
-                    else:
-                        st.info("ℹ️ Le graphique de l'effort tranchant n'est malheureusement pas disponible dans la version de la bibliothèque ROSS actuellement installée sur ce serveur.")
+                    fig = static.plot_shearing_force()
+                elif "Corps Libre" in plot_choice:
+                    fig = static.plot_free_body_diagram()
 
                 # Si une figure a été générée avec succès, on l'affiche
                 if fig is not None:
