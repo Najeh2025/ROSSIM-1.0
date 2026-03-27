@@ -3067,7 +3067,7 @@ def render_about_page():
             """
             <div style="text-align: center; padding: 20px; background-color: #f8f9fa; border-radius: 10px; border: 1px solid #e9ecef;">
                 <h1 style="font-size: 4em; margin: 0;">⚙️</h1>
-                <h3 style="color: #1F5C8B;">RotorLab</h3>
+                <h3 style="color: #1F5C8B;">RotorLab Suite</h3>
                 <p style="color: #666; font-size: 0.9em;">Version 1.0.0<br>Build 2026</p>
             </div>
             """, 
