@@ -2024,20 +2024,50 @@ def _render_m4():
 
     with tab_bal:
         col1, col2 = st.columns(2)
+        
         with col1:
-            st.markdown("**🔩 Balourd**")
-            un  = st.slider("Nœud", 0, n_nodes, min(2, n_nodes), key="m4_un")
-            mag = st.number_input("Magnitude (kg·m)", 1e-5, 0.5, 0.001, format="%.5f", key="m4_mag")
-            ph  = st.slider("Phase (°)", 0, 360, 0, key="m4_ph")
-        with col2:
-            st.markdown("**📡 Sonde**")
-            pn  = st.slider("Nœud probe", 0, n_nodes, min(2, n_nodes), key="m4_pn")
-            pd  = st.radio("Direction", ["X (0)","Y (1)"], horizontal=True, key="m4_pd")
-            pdf = 0 if "X" in pd else 1
-            fm  = st.slider("Fmax (Hz)", 100, 5000, 2000, key="m4_fm")
+            st.markdown("**🔩 Paramètres du Balourd**")
+            un = st.slider("Nœud d'application", 0, n_nodes, min(2, n_nodes), key="m4_un")
+            
+            # --- NOUVEAU : Choix du mode de définition du balourd ---
+            bal_mode = st.radio("Mode de définition :", ["Saisie manuelle", "Calcul Norme ISO 1940"], horizontal=True)
+            
+            if bal_mode == "Saisie manuelle":
+                mag = st.number_input("Magnitude (kg·m)", 1e-5, 0.5, 0.001, format="%.5f", key="m4_mag")
+            else:
+                # Mode Automatique ISO 1940
+                c_iso1, c_iso2 = st.columns(2)
+                with c_iso1:
+                    grade_str = st.selectbox(
+                        "Grade de Qualité (G)", 
+                        ["G0.4", "G1.0", "G2.5", "G6.3", "G16"], 
+                        index=2, # Par défaut G2.5 (Turbines/Compresseurs)
+                        help="G2.5 est le standard pour les turbines à gaz et compresseurs."
+                    )
+                    grade_val = float(grade_str[1:]) # Extrait le nombre après le "G"
+                with c_iso2:
+                    # On récupère astucieusement la vitesse saisie dans le M3 (ou 3000 par défaut)
+                    default_op = st.session_state.get("m3_op_global", 3000.0)
+                    op_rpm_iso = st.number_input("Vitesse d'opération (RPM)", 500.0, 30000.0, float(default_op), step=100.0, key="m4_op_iso")
+                
+                # Calcul mathématique du Uper (Balourd Toléré)
+                omega_iso = op_rpm_iso * np.pi / 30
+                mag = (rotor.m * grade_val) / (1000 * omega_iso)
+                
+                st.info(f"💡 **Balourd toléré calculé : {mag:.6f} kg·m**\n(Basé sur une masse de {rotor.m:.2f} kg)")
 
-        if st.button("🌀 Calculer réponse au balourd", type="primary", key="m4_bal"):
-            with st.spinner("Calcul balourd..."):
+            ph = st.slider("Phase initiale (°)", 0, 360, 0, key="m4_ph")
+            
+        with col2:
+            st.markdown("**📡 Sonde de mesure (Probe)**")
+            pn  = st.slider("Nœud de la sonde", 0, n_nodes, min(2, n_nodes), key="m4_pn")
+            pd  = st.radio("Direction d'observation", ["X (Horizontal)", "Y (Vertical)"], horizontal=True, key="m4_pd")
+            pdf = 0 if "X" in pd else 1
+            fm  = st.slider("Fréquence maximale d'analyse (Hz)", 100, 5000, 2000, key="m4_fm")
+
+        # 🚀 Le Bouton reste identique
+        if st.button("🌀 Calculer la réponse au balourd", type="primary", key="m4_bal"):
+            with st.spinner("Calcul de la réponse au balourd..."):
                 res = eng.run_unbalance(nodes=[un], mags=[mag],
                                          phases=[np.deg2rad(ph)], fmax=float(fm))
             if res:
