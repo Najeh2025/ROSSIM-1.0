@@ -1784,18 +1784,36 @@ def _render_m2():
                 key="m2_stat_choice"
             )
             
-            # 3. Affichage conditionnel selon le choix
+            # 3. Affichage conditionnel selon le choix (avec compatibilité multi-versions)
             try:
+                fig = None
                 if "Déformée" in plot_choice:
-                    st.plotly_chart(static.plot_deflected_shape(), use_container_width=True)
+                    # Test des différentes méthodes selon la version de ROSS
+                    if hasattr(static, "plot_deformation"):
+                        fig = static.plot_deformation()
+                    elif hasattr(static, "plot_deflected_shape"):
+                        fig = static.plot_deflected_shape()
+                    else:
+                        st.warning("⚠️ L'affichage de la déformée n'est pas reconnu par cette version de ROSS.")
+                
                 elif "Moment" in plot_choice:
-                    st.plotly_chart(static.plot_bending_moment(), use_container_width=True)
+                    if hasattr(static, "plot_bending_moment"):
+                        fig = static.plot_bending_moment()
+                    else:
+                        st.warning("⚠️ L'affichage du moment fléchissant n'est pas reconnu.")
+                
                 elif "Effort" in plot_choice:
-                    st.plotly_chart(static.plot_shear_force(), use_container_width=True)
-            except AttributeError as e:
-                st.warning(f"⚠️ Ce graphique n'est pas supporté par votre version actuelle de ROSS : {e}")
+                    if hasattr(static, "plot_shear_force"):
+                        fig = static.plot_shear_force()
+                    else:
+                        st.warning("⚠️ L'affichage de l'effort tranchant n'est pas reconnu.")
+
+                # Si une figure a été générée avec succès, on l'affiche
+                if fig is not None:
+                    st.plotly_chart(fig, use_container_width=True)
+
             except Exception as e:
-                st.error(f"❌ Erreur lors de la génération du graphique : {e}")
+                st.error(f"❌ Erreur inattendue lors de la génération du graphique : {e}")
 
     with tab_modal:
         col1, col2 = st.columns([2,1])
