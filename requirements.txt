@@ -22,3 +22,5 @@ anthropic>=0.20.0
 reportlab>=4.0.0   # PDF avancé — activer si nécessaire
 #  ajouter Gemini API
 google-generativeai>=0.5.0
+
+kaleido==0.2.1
