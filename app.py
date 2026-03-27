@@ -2177,7 +2177,7 @@ def _plot_nyquist(freq_resp, inp_dof, out_dof):
     except Exception as e:
         st.caption(f"Nyquist non disponible : {e}")
 
-def _plot_waterfall(t, y, max_freq_hz=None):
+def _plot_waterfall(t, y, max_freq_hz=None, plot_key="default_waterfall"):
     """Génère un diagramme de Cascade (Waterfall) 3D interactif."""
     try:
         from scipy import signal
@@ -2217,7 +2217,7 @@ def _plot_waterfall(t, y, max_freq_hz=None):
             height=550,
             margin=dict(l=0, r=0, b=0, t=30)
         )
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, key=plot_key)
         
     except Exception as e:
         st.warning(f"Impossible de générer le diagramme Cascade : {e}")
@@ -2289,7 +2289,9 @@ def _render_m5():
                         fig_t.add_trace(go.Scatter(x=t_arr, y=y_um, name="Y", line=dict(color="#C55A11", width=1.5)))
                         fig_t.update_layout(title=f"Réponse Temporelle (Nœud {node_o})", 
                                             xaxis_title="Temps (s)", yaxis_title="Déplacement (µm)", height=400)
-                        st.plotly_chart(fig_t, use_container_width=True)
+                        
+                        # Ajout de key="m5_time_t"
+                        st.plotly_chart(fig_t, use_container_width=True, key="m5_time_t")
                         
                     with col_p2:
                         fig_o = go.Figure()
@@ -2298,21 +2300,19 @@ def _render_m5():
                         fig_o.update_layout(title=f"Orbite (Nœud {node_o})", 
                                             xaxis_title="X (µm)", yaxis_title="Y (µm)", 
                                             yaxis_scaleanchor="x", height=400)
-                        st.plotly_chart(fig_o, use_container_width=True)
-                    with col_p2:
-                        fig_o = go.Figure()
-                        fig_o.add_trace(go.Scatter(x=x_um, y=y_um, mode="lines", name="Orbite", 
-                                                       line=dict(color="#22863A", width=2)))
-                        fig_o.update_layout(title=f"Orbite (Nœud {node_o})", 
-                                                xaxis_title="X (µm)", yaxis_title="Y (µm)", 
-                                                yaxis_scaleanchor="x", height=400)
-                        st.plotly_chart(fig_o, use_container_width=True)
-                            
-                        # --- NOUVEAU : DIAGRAMME CASCADE 3D ---
-                        st.markdown("---")
-                        st.markdown("### 🌊 Évolution Fréquentielle (Cascade 3D)")
-                        st.info("💡 **Diagramme Waterfall :** Ce graphique montre l'évolution du spectre vibratoire dans le temps. Cliquez et faites glisser pour pivoter en 3D !")
+                                            
+                        # Ajout de key="m5_time_o"
+                        st.plotly_chart(fig_o, use_container_width=True, key="m5_time_o")
                         
+                    # --- NOUVEAU : DIAGRAMME CASCADE 3D ---
+                    st.markdown("---")
+                    st.markdown("### 🌊 Évolution Fréquentielle (Cascade 3D)")
+                    st.info("💡 **Diagramme Waterfall :** Ce graphique montre l'évolution du spectre vibratoire dans le temps. Cliquez et faites glisser pour pivoter en 3D !")
+                    
+                    f_max_plot = (speed_rpm / 60.0) * 5.0 
+                    
+                    # On passe une clé unique à la fonction
+                    _plot_waterfall(t_arr, x_um, max_freq_hz=f_max_plot, plot_key="m5_time_water")
                         # On limite l'affichage à 5 fois la fréquence de rotation (5X) pour voir l'essentiel
                         f_max_plot = (speed_rpm / 60.0) * 5.0 
                         
