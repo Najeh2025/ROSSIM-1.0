@@ -2177,7 +2177,51 @@ def _plot_nyquist(freq_resp, inp_dof, out_dof):
     except Exception as e:
         st.caption(f"Nyquist non disponible : {e}")
 
-
+def _plot_waterfall(t, y, max_freq_hz=None):
+    """Génère un diagramme de Cascade (Waterfall) 3D interactif."""
+    try:
+        from scipy import signal
+        
+        # Calcul de la fréquence d'échantillonnage
+        dt = t[1] - t[0]
+        fs = 1.0 / dt
+        
+        # Paramétrage du spectrogramme (fenêtre glissante)
+        nperseg = min(256, max(16, len(y)//8))
+        f, t_spec, Sxx = signal.spectrogram(y, fs, nperseg=nperseg, noverlap=nperseg-4)
+        
+        # Filtrage des fréquences trop hautes pour garder un beau graphique
+        if max_freq_hz is None:
+            max_freq_hz = fs / 2.0
+            
+        valid_f = f <= max_freq_hz
+        f_plot = f[valid_f]
+        Sxx_plot = np.abs(Sxx[valid_f, :])
+        
+        # Création de la surface 3D
+        fig = go.Figure(data=[go.Surface(
+            x=f_plot, 
+            y=t_spec, 
+            z=Sxx_plot.T,
+            colorscale='Jet', # Rendu thermique industriel classique
+            colorbar=dict(title="Amp (µm)")
+        )])
+        
+        fig.update_layout(
+            scene=dict(
+                xaxis_title="Fréquence (Hz)",
+                yaxis_title="Temps (s)",
+                zaxis_title="Amplitude (µm)",
+                camera=dict(eye=dict(x=1.5, y=1.5, z=1.2)) # Angle de vue optimal
+            ),
+            height=550,
+            margin=dict(l=0, r=0, b=0, t=30)
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        
+    except Exception as e:
+        st.warning(f"Impossible de générer le diagramme Cascade : {e}")
+        
 # ── M5 — Temporel & Défauts ───────────────────────────────────────────────────
 def _render_m5():
     st.subheader("⏱️ M5 — Réponse Temporelle & Analyse de Défauts")
@@ -2255,7 +2299,25 @@ def _render_m5():
                                             xaxis_title="X (µm)", yaxis_title="Y (µm)", 
                                             yaxis_scaleanchor="x", height=400)
                         st.plotly_chart(fig_o, use_container_width=True)
+                    with col_p2:
+                        fig_o = go.Figure()
+                        fig_o.add_trace(go.Scatter(x=x_um, y=y_um, mode="lines", name="Orbite", 
+                                                       line=dict(color="#22863A", width=2)))
+                        fig_o.update_layout(title=f"Orbite (Nœud {node_o})", 
+                                                xaxis_title="X (µm)", yaxis_title="Y (µm)", 
+                                                yaxis_scaleanchor="x", height=400)
+                        st.plotly_chart(fig_o, use_container_width=True)
+                            
+                        # --- NOUVEAU : DIAGRAMME CASCADE 3D ---
+                        st.markdown("---")
+                        st.markdown("### 🌊 Évolution Fréquentielle (Cascade 3D)")
+                        st.info("💡 **Diagramme Waterfall :** Ce graphique montre l'évolution du spectre vibratoire dans le temps. Cliquez et faites glisser pour pivoter en 3D !")
                         
+                        # On limite l'affichage à 5 fois la fréquence de rotation (5X) pour voir l'essentiel
+                        f_max_plot = (speed_rpm / 60.0) * 5.0 
+                        
+                        # Appel de notre nouvelle fonction magique
+                        _plot_waterfall(t_arr, x_um, max_freq_hz=f_max_plot)
                 except Exception as e:
                     st.error(f"Le calcul a réussi, mais l'extraction graphique est impossible : {e}")
             else:
