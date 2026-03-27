@@ -1660,21 +1660,36 @@ def _render_m1():
                              for r in st.session_state.df_disk.to_dict('records')]
                              
                     bears = []
-                    point_masses = []
+                    # Les masses ponctuelles seront ajoutées directement aux disques (astuce infaillible)
                     
                     for r in st.session_state.df_bear.to_dict('records'):
                         n = int(r["nœud"])
-                        e_type = r.get("Type", "Palier")
+                        
+                        # 1. Lecture sécurisée du type (gère les espaces ou les renommages de colonnes)
+                        e_type = str(r.get("Type", r.get("Type d'élément", "Palier"))).strip()
                         
                         if e_type == "Masse":
-                            # C'est une masse ponctuelle
-                            m_val = float(r.get("m (kg)", 0.0))
-                            point_masses.append(rs.PointMass(n=n, m=m_val))
-                        else:
-                            # C'est un palier, joint ou roulement
-                            kxx = float(r["kxx"]); kyy = float(r["kyy"]); kxy = float(r["kxy"])
-                            cxx = float(r["cxx"]); cyy = float(r["cyy"])
+                            # 2. Extraction sécurisée de la masse
+                            m_val = r.get("m (kg)", 0.0)
+                            m_val = float(m_val) if m_val is not None and not pd.isna(m_val) else 0.0
                             
+                            if m_val > 0:
+                                # Astuce : une masse ponctuelle est un disque avec inertie = 0
+                                disks.append(rs.DiskElement(n=n, m=m_val, Id=0.0, Ip=0.0))
+                                
+                        else:
+                            # 3. Extraction hyper-sécurisée des raideurs/amortissements
+                            def safe_val(val):
+                                if val is None or pd.isna(val) or str(val).strip() == "": return 0.0
+                                return float(val)
+                                
+                            kxx = safe_val(r.get("kxx", 0.0))
+                            kyy = safe_val(r.get("kyy", 0.0))
+                            kxy = safe_val(r.get("kxy", 0.0))
+                            cxx = safe_val(r.get("cxx", 0.0))
+                            cyy = safe_val(r.get("cyy", 0.0))
+                            
+                            # 4. Instanciation du bon élément ROSS
                             if e_type == "Joint":
                                 bears.append(rs.SealElement(n=n, kxx=kxx, kyy=kyy, kxy=kxy, kyx=-kxy, cxx=cxx, cyy=cyy))
                             elif e_type == "Roulement":
@@ -1682,8 +1697,8 @@ def _render_m1():
                             else:
                                 bears.append(rs.BearingElement(n=n, kxx=kxx, kyy=kyy, kxy=kxy, kyx=-kxy, cxx=cxx, cyy=cyy))
                     
-                    # On assemble le tout en ajoutant les point_masses
-                    rotor = rs.Rotor(shaft, disks, bears, point_mass_elements=point_masses)
+                    # 5. Assemblage final propre
+                    rotor = rs.Rotor(shaft, disks, bears)
                     
                    
                     _CACHE["free_rotor"] = rotor
