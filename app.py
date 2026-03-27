@@ -2305,6 +2305,7 @@ def _render_m5():
                         st.plotly_chart(fig_o, use_container_width=True, key="m5_time_o")
                         
                     # --- NOUVEAU : DIAGRAMME CASCADE 3D ---
+                   
                     st.markdown("---")
                     st.markdown("### 🌊 Évolution Fréquentielle (Cascade 3D)")
                     st.info("💡 **Diagramme Waterfall :** Ce graphique montre l'évolution du spectre vibratoire dans le temps. Cliquez et faites glisser pour pivoter en 3D !")
@@ -2313,11 +2314,6 @@ def _render_m5():
                     
                     # On passe une clé unique à la fonction
                     _plot_waterfall(t_arr, x_um, max_freq_hz=f_max_plot, plot_key="m5_time_water")
-                        # On limite l'affichage à 5 fois la fréquence de rotation (5X) pour voir l'essentiel
-                        f_max_plot = (speed_rpm / 60.0) * 5.0 
-                        
-                        # Appel de notre nouvelle fonction magique
-                        _plot_waterfall(t_arr, x_um, max_freq_hz=f_max_plot)
                 except Exception as e:
                     st.error(f"Le calcul a réussi, mais l'extraction graphique est impossible : {e}")
             else:
