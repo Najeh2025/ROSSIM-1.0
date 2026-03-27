@@ -1884,26 +1884,31 @@ def _render_m3():
                 _CACHE["free_camp"] = camp
                 _CACHE["free_camp_vmax"] = vmax
                 _CACHE["free_camp_npts"] = npts
+                
                 try: 
                     # 1. On récupère la figure de base générée par ROSS
                     fig_camp = camp.plot()
                     
-                    # 2. 🎨 MAGIE VISUELLE : Ajout de la zone API 684 en rouge transparent
+                    # 2. Ajout de la zone API 684
                     fig_camp.add_vrect(
                         x0=zl, x1=zh, 
                         fillcolor="red", opacity=0.15, line_width=1, line_dash="dot", line_color="red",
                         annotation_text="Zone Interdite (API 684)", annotation_position="top left",
                         annotation_font_color="red"
                     )
-                    # 3. Ajout d'une ligne pointillée pour la vitesse opérationnelle exacte
                     fig_camp.add_vline(x=op_rpm, line_dash="dash", line_color="darkred", annotation_text=" Vitesse Op.")
                     
+                    # 3. Affichage sur l'interface
                     st.plotly_chart(fig_camp, use_container_width=True)
-                    st.plotly_chart(fig_camp, use_container_width=True)
-                    # --- CAPTURE IMAGE POUR LE PDF ---
+                    
+                    # 4. Capture de l'image pour le PDF
                     st.session_state["img_campbell_plot"] = fig_camp.to_image(format="png", width=700, height=450)
+                    
                 except Exception: 
+                    # Le graphique de secours ne s'affiche QUE si le principal plante
                     _plot_campbell_fallback(camp, vmax, npts)
+                
+                # ... (Garde la suite du code modal_0 = eng.run_modal(0) etc.) ...
                     
                 modal_0 = eng.run_modal(0)
                 if modal_0:
