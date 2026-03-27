@@ -1820,6 +1820,12 @@ def _render_m3():
         st.warning("⚠️ Aucun rotor — M1 d'abord"); return
 
     eng = SimulationEngine(rotor)
+
+    # --- NOUVEAU : Paramètre global pour le M3 ---
+    st.markdown("### 🎯 Paramètres de fonctionnement")
+    op_rpm = st.number_input("Vitesse opérationnelle cible (RPM)", 500.0, 30000.0, 3000.0, step=100.0, key="m3_op_global")
+    zl, zh = op_rpm * 0.85, op_rpm * 1.15  # Calcul automatique de la zone API (± 15%)
+
     tab_camp, tab_stab, tab_api = st.tabs(["📈 Campbell", "📉 Stabilité (Log Dec)", "🔧 Vérification API 684"])
 
     with tab_camp:
@@ -1835,8 +1841,24 @@ def _render_m3():
                 _CACHE["free_camp"] = camp
                 _CACHE["free_camp_vmax"] = vmax
                 _CACHE["free_camp_npts"] = npts
-                try: st.plotly_chart(camp.plot(), use_container_width=True)
-                except Exception: _plot_campbell_fallback(camp, vmax, npts)
+                try: 
+                    # 1. On récupère la figure de base générée par ROSS
+                    fig_camp = camp.plot()
+                    
+                    # 2. 🎨 MAGIE VISUELLE : Ajout de la zone API 684 en rouge transparent
+                    fig_camp.add_vrect(
+                        x0=zl, x1=zh, 
+                        fillcolor="red", opacity=0.15, line_width=1, line_dash="dot", line_color="red",
+                        annotation_text="Zone Interdite (API 684)", annotation_position="top left",
+                        annotation_font_color="red"
+                    )
+                    # 3. Ajout d'une ligne pointillée pour la vitesse opérationnelle exacte
+                    fig_camp.add_vline(x=op_rpm, line_dash="dash", line_color="darkred", annotation_text=" Vitesse Op.")
+                    
+                    st.plotly_chart(fig_camp, use_container_width=True)
+                except Exception: 
+                    _plot_campbell_fallback(camp, vmax, npts)
+                    
                 modal_0 = eng.run_modal(0)
                 if modal_0:
                     fn = modal_0.wn / (2*np.pi)
@@ -1916,8 +1938,10 @@ def _render_m3():
         fn = modal_0.wn / (2*np.pi)
         vc_rpm = fn * 60
         ld = getattr(modal_0, 'log_dec', np.zeros(len(fn)))
-        op_rpm = st.number_input("Vitesse opérationnelle (RPM)", 500.0, 20000.0, 3000.0, key="m3_op")
-        zl, zh = op_rpm * 0.85, op_rpm * 1.15
+        
+        # On utilise les variables op_rpm, zl et zh définies en haut du module
+        st.info(f"Vérification pour la vitesse de **{op_rpm:.0f} RPM** (Zone interdite : [{zl:.0f} – {zh:.0f}] RPM)")
+        
         results_api = []
         for i, (vc, log_d) in enumerate(zip(vc_rpm[:6], ld[:6])):
             in_zone = zl <= vc <= zh
