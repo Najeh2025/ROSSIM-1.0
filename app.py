@@ -3041,7 +3041,7 @@ def render_about_page():
     col1, col2 = st.columns([2, 1])
     
     with col1:
-        st.markdown("### 🌀 L'Application")
+        st.markdown("### ⚙️ L'Application")
         st.write("""
         **RotorLab Suite 1.0** est une plateforme avancée de modélisation et de simulation dédiée à la dynamique des rotors. 
         Conçue pour répondre aux exigences académiques et industrielles, elle permet de réaliser des analyses statiques, modales, temporelles et de balourd avec une interface hautement interactive.
