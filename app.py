@@ -977,20 +977,6 @@ def render_dashboard():
     </div>
     """, unsafe_allow_html=True)
 
-    # Indicateurs d'état ultra-compacts
-    c1, c2, c3 = st.columns(3)
-    with c1:
-        if ROSS_AVAILABLE: st.success(f"✅ Moteur ROSS {ROSS_VERSION} en ligne")
-        else: st.error("❌ Moteur ROSS non installé")
-    with c2:
-        rotor_ok = _CACHE.get("free_rotor") is not None
-        if rotor_ok: st.info(f"🔧 Rotor actif : {len(_CACHE['free_rotor'].nodes)} nœuds")
-        else: st.warning("⚠️ Aucun rotor en mémoire")
-    with c3:
-        st.metric("Simulations lancées", st.session_state.get("sim_count", 0))
-
-    st.markdown("---")
-
 # --- ACCÈS RAPIDE AUX MODULES (Cliquables + M6 Renommé) ---
     st.markdown("### 🚀 Accès Rapide aux Modules")
     modules = [
