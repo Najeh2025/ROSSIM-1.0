@@ -1760,18 +1760,42 @@ def _render_m2():
     tab_stat, tab_modal = st.tabs(["📏 Analyse Statique", "🎵 Analyse Modale"])
 
     with tab_stat:
-        st.info("Calcule la déflexion par gravité + réactions aux paliers + diagramme de moment fléchissant")
+        st.info("Calcule la déflexion par gravité, les réactions aux paliers et les efforts internes.")
+        
+        # 1. Bouton pour lancer le calcul
         if st.button("📏 Lancer l'analyse statique", type="primary", key="m2_static"):
             with st.spinner("Calcul statique..."):
                 static = eng.run_static()
             if static:
                 _CACHE["free_static"] = static
-                for m in ["plot_deflected_shape", "plot_bending_moment", "plot"]:
-                    if hasattr(static, m):
-                        try: st.plotly_chart(getattr(static, m)(), use_container_width=True); break
-                        except Exception: continue
             else:
                 st.error(f"Erreur : {eng.last_error}")
+
+        # 2. Si le calcul est en mémoire, on affiche le menu de sélection
+        static = _CACHE.get("free_static")
+        if static:
+            st.success("✅ Analyse statique terminée !")
+            
+            # Le choix de l'utilisateur
+            plot_choice = st.radio(
+                "Sélectionnez le diagramme à afficher :",
+                ["📐 Déformée de l'arbre", "🔄 Moment Fléchissant", "✂️ Effort Tranchant"],
+                horizontal=True,
+                key="m2_stat_choice"
+            )
+            
+            # 3. Affichage conditionnel selon le choix
+            try:
+                if "Déformée" in plot_choice:
+                    st.plotly_chart(static.plot_deflected_shape(), use_container_width=True)
+                elif "Moment" in plot_choice:
+                    st.plotly_chart(static.plot_bending_moment(), use_container_width=True)
+                elif "Effort" in plot_choice:
+                    st.plotly_chart(static.plot_shear_force(), use_container_width=True)
+            except AttributeError as e:
+                st.warning(f"⚠️ Ce graphique n'est pas supporté par votre version actuelle de ROSS : {e}")
+            except Exception as e:
+                st.error(f"❌ Erreur lors de la génération du graphique : {e}")
 
     with tab_modal:
         col1, col2 = st.columns([2,1])
