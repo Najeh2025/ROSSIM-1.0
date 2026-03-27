@@ -970,7 +970,7 @@ def render_dashboard():
     # --- NOM PLUS ÉLÉGANT ET HEADER COMPACT ---
     st.markdown("""
     <div style='text-align:center; padding:5px 0 20px'>
-      <h1 style='color:#1F5C8B; font-size:3em; margin:0; font-weight:800; letter-spacing:-1px;'>🌀 RotorLab Suite 1.0</h1>
+      <h1 style='color:#1F5C8B; font-size:3em; margin:0; font-weight:800; letter-spacing:-1px;'>⚙️ RotorLab Suite 1.0</h1>
       <p style='color:#666; font-size:1.2em; font-weight:500; margin:0'>
         Plateforme d'Ingénierie Avancée pour la Dynamique des Rotors
       </p>
