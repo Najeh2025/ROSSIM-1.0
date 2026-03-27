@@ -3031,7 +3031,48 @@ Je peux vous aider avec :
 
 Posez une question plus précise ou utilisez les boutons de questions rapides ci-dessus.{ctx_info}
 """)
+# =============================================================================
+# PAGE : À PROPOS (ABOUT)
+# =============================================================================
+def render_about_page():
+    st.title("ℹ️ À propos de RotorLab Suite 1.0")
+    st.markdown("---")
+    
+    col1, col2 = st.columns([2, 1])
+    
+    with col1:
+        st.markdown("### 🌀 L'Application")
+        st.write("""
+        **RotorLab Suite 1.0** est une plateforme avancée de modélisation et de simulation dédiée à la dynamique des rotors. 
+        Conçue pour répondre aux exigences académiques et industrielles, elle permet de réaliser des analyses statiques, modales, temporelles et de balourd avec une interface hautement interactive.
+        
+        Ce logiciel s'appuie sur la robustesse du moteur de calcul open-source **ROSS** (Rotordynamic Open-Source Software) développé en Python, en y apportant une couche de visualisation 3D, de génération de rapports PDF automatiques et de vérification des normes industrielles (API 684, ISO 1940).
+        """)
+        
+        st.markdown("### 👨‍💻 Le Créateur")
+        st.write("""
+        Développée par **[Pr. Najeh Ben Guedria]**, cette application s'inscrit dans le cadre de travaux de recherche scientifiques et pédagogiques en ingénierie. 
+        
+        L'objectif de ce projet est de démocratiser l'accès aux outils de simulation vibratoire en fournissant une plateforme à la fois pédagogique pour les étudiants et performante pour les ingénieurs. 
+        
+        """)
+        
+        st.markdown("### 📬 Contact & Liens")
+        st.write("📧 **Email :** [najeh.benguedria@istls.rnu.tn]")
+        st.write("🔗 **LinkedIn :** [https://www.linkedin.com/in/najeh-ben-guedria-6068a636b/]")
 
+    with col2:
+        # Tu peux remplacer cette image par ta photo ou le logo de ton université/association plus tard !
+        st.markdown(
+            """
+            <div style="text-align: center; padding: 20px; background-color: #f8f9fa; border-radius: 10px; border: 1px solid #e9ecef;">
+                <h1 style="font-size: 4em; margin: 0;">⚙️</h1>
+                <h3 style="color: #1F5C8B;">RotorLab</h3>
+                <p style="color: #666; font-size: 0.9em;">Version 1.0.0<br>Build 2026</p>
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
 
 # =============================================================================
 # NAVIGATION PRINCIPALE — MAIN
@@ -3063,6 +3104,7 @@ def main():
             "🔬 Mode Simulation",
             "📚 Bibliothèque",
             "💬 ROSS GPT",
+            "ℹ️ À propos", # <-- La nouvelle page ajoutée ici
         ], key="nav_page")
 
         # Progression
@@ -3104,6 +3146,8 @@ def main():
         render_library()
     elif "GPT" in current_page:
         render_ross_gpt()
+    elif "À propos" in current_page:  # <-- NOUVEAU
+        render_about_page()
 
 if __name__ == "__main__":
     main()
