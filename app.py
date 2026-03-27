@@ -1027,7 +1027,10 @@ def render_dashboard():
             done = tid in tut_done
             with tcols[i]:
                 status = "✅" if done else "▶️"
-                st.markdown(f"<div class='card' style='padding:10px; border-left-color:{\"#22863A\" if done else \"#1F5C8B\"}'>"
+                # On calcule la couleur en dehors de la f-string pour éviter l'erreur
+                card_color = "#22863A" if done else "#1F5C8B"
+                
+                st.markdown(f"<div class='card' style='padding:10px; border-left-color:{card_color};'>"
                             f"<small>{status} <b>{tdata['level']}</b></small><br>"
                             f"<span style='font-size:0.8em; line-height:1.2;'>{tdata['title'][:35]}</span>"
                             f"</div>", unsafe_allow_html=True)
