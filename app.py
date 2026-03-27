@@ -252,14 +252,19 @@ class RotorBuilder:
         self._shaft.clear()
         for i, row in df.iterrows():
             try:
-                L, idl, odl = float(row.get("L (m)", 0.2)), float(row.get("id (m)", 0.0)), float(row.get("od (m)", 0.05))
+                L = float(row.get("L (m)", row.get("L", 0.2)))
+                idl = float(row.get("id_L (m)", row.get("id (m)", 0.0)))
+                odl = float(row.get("od_L (m)", row.get("od (m)", 0.05)))
+                idr = float(row.get("id_R (m)", idl))
+                odr = float(row.get("od_R (m)", odl))
+                
                 if L <= 0:
                     self._errors.append(f"Élément {i+1} : L doit être > 0")
                     continue
-                if idl >= odl:
+                if idl >= odl or idr >= odr:
                     self._errors.append(f"Élément {i+1} : id doit être < od")
                     continue
-                self._shaft.append(rs.ShaftElement(L=L, idl=idl, odl=odl, material=self.material))
+                self._shaft.append(rs.ShaftElement(L=L, idl=idl, odl=odl, idr=idr, odr=odr, material=self.material))
             except Exception as e:
                 self._errors.append(f"Élément d'arbre {i+1} : {e}")
         return self
@@ -1487,10 +1492,14 @@ def _render_m1():
     # 0. INITIALISATION DES TABLEAUX EN MÉMOIRE (Points 1 & 4)
     # =========================================================
     def init_tables():
-        st.session_state.df_shaft = pd.DataFrame([{"L (m)":0.2,"id (m)":0.0,"od (m)":0.05} for _ in range(5)])
+        # --- MODIFICATION ICI : Ajout de id_L, od_L, id_R, od_R ---
+        st.session_state.df_shaft = pd.DataFrame([
+            {"L (m)":0.2, "id_L (m)":0.0, "od_L (m)":0.05, "id_R (m)":0.0, "od_R (m)":0.05} 
+            for _ in range(5)
+        ])
+        
         st.session_state.df_disk = pd.DataFrame([{"nœud":2,"id (m)":0.05,"od (m)":0.25,"largeur (m)":0.07}])
         
-        # On utilise une valeur par défaut de base pour éviter les erreurs d'initialisation
         st.session_state.df_bear = pd.DataFrame([
             {"nœud":0, "kxx":1e6,"kyy":1e6,"kxy":0,"cxx":0,"cyy":0},
             {"nœud":5, "kxx":1e6,"kyy":1e6,"kxy":0,"cxx":0,"cyy":0},
@@ -1568,10 +1577,10 @@ def _render_m1():
 
     # --- ONGLET 2 : ARBRE ---
     with tab_arbre:
-        st.caption("Éléments de poutre Timoshenko — chaque ligne = 1 section")
+        st.caption("Éléments de poutre Timoshenko — L: Longueur, id: Diam. interne, od: Diam. externe")
+        st.info("💡 **Astuce Conique :** Entrez des valeurs différentes pour la Gauche (_L) et la Droite (_R) d'un même élément pour créer un arbre conique (tapered shaft).")
         col_table_a, col_vide_a = st.columns([8, 2])
         with col_table_a:
-            # On lit et on écrit directement dans st.session_state
             st.session_state.df_shaft = st.data_editor(st.session_state.df_shaft, num_rows="dynamic", key="m1_shaft", use_container_width=True)
 
     # --- ONGLET 3 : DISQUES ---
@@ -1615,8 +1624,20 @@ def _render_m1():
                     mat = rs.Material(name=mat_name.replace(" ", "_"), rho=props["rho"], E=props["E"], G_s=props["G_s"])
                     
                     # On lit les données depuis la mémoire de session
-                    shaft = [rs.ShaftElement(L=float(r.get("L (m)", r.get("L"))), idl=float(r.get("id (m)", r.get("id"))), odl=float(r.get("od (m)", r.get("od"))), material=mat)
-                             for r in st.session_state.df_shaft.to_dict('records')]
+                    # --- NOUVELLE BOUCLE SHAFT ---
+                    shaft = []
+                    for r in st.session_state.df_shaft.to_dict('records'):
+                        L = float(r.get("L (m)", r.get("L", 0.2)))
+                        
+                        # Récupération de la gauche (avec fallback sur l'ancien format)
+                        idl = float(r.get("id_L (m)", r.get("id (m)", r.get("id", 0.0))))
+                        odl = float(r.get("od_L (m)", r.get("od (m)", r.get("od", 0.05))))
+                        
+                        # Récupération de la droite (si vide, on prend la même valeur qu'à gauche = cylindre)
+                        idr = float(r.get("id_R (m)", r.get("id_R", idl)))
+                        odr = float(r.get("od_R (m)", r.get("od_R", odl)))
+                        
+                        shaft.append(rs.ShaftElement(L=L, idl=idl, odl=odl, idr=idr, odr=odr, material=mat))
                              
                     disks = [rs.DiskElement.from_geometry(n=int(r["nœud"]), material=mat,
                              width=float(r["largeur (m)"]), i_d=float(r["id (m)"]), o_d=float(r["od (m)"]))
