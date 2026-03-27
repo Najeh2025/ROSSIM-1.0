@@ -966,102 +966,82 @@ def _plot_freq_resp(res, inp_dof, out_dof, fmax, modal=None):
 # =============================================================================
 def render_dashboard():
     uname = st.session_state.get("user_name", "Utilisateur")
+    
+    # --- NOM PLUS ÉLÉGANT ET HEADER COMPACT ---
     st.markdown(f"""
-    <div style='text-align:center; padding:28px 0 10px'>
-      <h1 style='color:#1F5C8B; font-size:2.6em; margin:0'>⚙️ ROSSim Online</h1>
-      <p style='color:#555; font-size:1.15em; margin:4px 0'>
-        Application de Dynamique des Rotors • Basée sur ROSS Open-Source
+    <div style='text-align:center; padding:5px 0 20px'>
+      <h1 style='color:#1F5C8B; font-size:3em; margin:0; font-weight:800; letter-spacing:-1px;'>🌀 ROSSim Pro</h1>
+      <p style='color:#666; font-size:1.2em; font-weight:500; margin:0'>
+        Plateforme d'Ingénierie Avancée pour la Dynamique des Rotors
       </p>
     </div>
     """, unsafe_allow_html=True)
 
-    if not ROSS_AVAILABLE:
-        st.error("⚠️ ROSS non installé — `pip install ross-rotordynamics`")
-    else:
-        st.success(f"✅ ROSS {ROSS_VERSION} opérationnel")
-
-    # ── Progression ──────────────────────────────────────────────────────────
-    badges = st.session_state.get("badges", {})
-    tut_done = st.session_state.get("tut_done", set())
-    n_done = len(tut_done); total = len(TUTORIALS)
-    pct = n_done / total if total else 0
-
-    col_prog, col_stat = st.columns([2, 1])
-    with col_prog:
-        st.markdown(f"### 📊 Progression — {uname}")
-        st.progress(pct)
-        st.caption(f"{n_done}/{total} tutoriels complétés ({pct*100:.0f}%)")
-        if badges:
-            bh = "".join(_badge("gold" if v=="gold" else "silver" if v=="silver" else "bronze",
-                                 f"{'🥇' if v=='gold' else '🥈' if v=='silver' else '🥉'} {k}")
-                          for k, v in badges.items())
-            st.markdown(bh, unsafe_allow_html=True)
-        else:
-            st.info("🏅 Complétez les tutoriels pour débloquer vos badges !")
-
-    with col_stat:
-        st.markdown("### 🔧 Statut")
-        sim_count = st.session_state.get("sim_count", 0)
-        st.metric("Simulations lancées", sim_count)
+    # Indicateurs d'état ultra-compacts
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        if ROSS_AVAILABLE: st.success(f"✅ Moteur ROSS {ROSS_VERSION} en ligne")
+        else: st.error("❌ Moteur ROSS non installé")
+    with c2:
         rotor_ok = _CACHE.get("free_rotor") is not None
-        st.metric("Rotor en mémoire", "✅ Oui" if rotor_ok else "❌ Non")
+        if rotor_ok: st.info(f"🔧 Rotor actif : {len(_CACHE['free_rotor'].nodes)} nœuds")
+        else: st.warning("⚠️ Aucun rotor en mémoire")
+    with c3:
+        st.metric("Simulations lancées", st.session_state.get("sim_count", 0))
 
     st.markdown("---")
-    # ── Modules ──────────────────────────────────────────────────────────────
+
+    # --- ACCÈS RAPIDE AUX MODULES (Cliquables + M6 Renommé) ---
     st.markdown("### 🚀 Accès Rapide aux Modules")
-    cols = st.columns(3)
     modules = [
-        ("M1 🏗️", "Constructeur de Rotor", "Créer arbre, disques, paliers — bibliothèque matériaux", "#22863A"),
-        ("M2 📊", "Statique & Modal", "Déflexion statique, fréquences propres, déformées 3D", "#1F5C8B"),
-        ("M3 📈", "Campbell & Stabilité", "Diagramme de Campbell, vitesses critiques, API 684", "#1F5C8B"),
-        ("M4 🌀", "Balourd & H(jω)", "Réponse au balourd, Bode, Nyquist, DAF", "#C55A11"),
-        ("M5 ⏱️", "Temporel & Défauts", "Transitoires, orbites, fissure, désalignement, frottement", "#C00000"),
-        ("M6 🎲", "Stochastique", "Incertitudes, Monte Carlo, intervalles de confiance", "#7B1FA2"),
+        ("M1", "🏗️ Constructeur", "Géométrie, Matériaux, Paliers"),
+        ("M2", "📊 Statique & Modal", "Déflexion, Fréquences propres"),
+        ("M3", "📈 Campbell", "Stabilité, Vitesses critiques, API"),
+        ("M4", "🌀 Balourd & H(jω)", "Bode, Nyquist, Norme ISO 1940"),
+        ("M5", "⏱️ Temporel", "Défauts, Cascade 3D (Waterfall)"),
+        ("M6", "📄 Rapport & Export", "Génération du document PDF final"), # <- Correction M6
     ]
-    for i, (badge, title, desc, color) in enumerate(modules):
+    
+    cols = st.columns(3)
+    for i, (m_id, title, desc) in enumerate(modules):
         with cols[i % 3]:
-            st.markdown(f"""
-            <div class='card' style='border-left-color:{color}'>
-              <b style='color:{color}'>{badge} — {title}</b><br>
-              <small>{desc}</small>
-            </div>""", unsafe_allow_html=True)
+            # Design de la carte HTML
+            st.markdown(f"<div style='background:#f8f9fa; padding:10px 15px; border-radius:6px; border-left:4px solid #1F5C8B; margin-bottom:5px;'>"
+                        f"<b style='font-size:1.1em;'>{m_id} {title}</b><br><span style='font-size:0.85em; color:#666;'>{desc}</span></div>", unsafe_allow_html=True)
+            # Le vrai bouton Streamlit juste en dessous
+            if st.button(f"Ouvrir {m_id}", key=f"btn_dash_{m_id}", use_container_width=True):
+                st.session_state["nav_page"] = "🔬 Mode Simulation"
+                st.session_state["sim_module"] = m_id
+                st.rerun()
 
     st.markdown("---")
-    # ── Tutoriels rapides ─────────────────────────────────────────────────────
-    st.markdown("### 🎓 Tutoriels Officiels ROSS")
-    tcols = st.columns(4)
-    for i, (tid, tdata) in enumerate(TUTORIALS.items()):
-        done = tid in tut_done
-        with tcols[i]:
-            status = "✅" if done else "▶️"
-            st.markdown(f"""
-            <div class='card{"" if not done else ""}'
-                 style='border-left-color:{"#22863A" if done else "#1F5C8B"}'>
-              {status} <b>{tdata["level"]}</b><br>
-              <small><b>{tdata["title"][:40]}</b></small><br>
-              <small>⏱ {tdata["duration"]}</small>
-            </div>""", unsafe_allow_html=True)
-
-    # ── Exemples industriels ──────────────────────────────────────────────────
-    st.markdown("---")
-    st.markdown("### 🏭 Exemple Industriel ROSS (Compresseur Centrifuge)")
-    if ROSS_AVAILABLE:
-        if st.button("Charger rs.compressor_example()"):
-            with st.spinner("Chargement du compresseur industriel..."):
+    
+    # --- COMPACTAGE : TUTORIELS & EXEMPLE SUR LA MÊME LIGNE ---
+    col_prog, col_ex = st.columns([2, 1])
+    
+    with col_prog:
+        st.markdown("### 🎓 Tutoriels Rapides")
+        tut_done = st.session_state.get("tut_done", set())
+        tcols = st.columns(4)
+        for i, (tid, tdata) in enumerate(TUTORIALS.items()):
+            done = tid in tut_done
+            with tcols[i]:
+                status = "✅" if done else "▶️"
+                st.markdown(f"<div class='card' style='padding:10px; border-left-color:{\"#22863A\" if done else \"#1F5C8B\"}'>"
+                            f"<small>{status} <b>{tdata['level']}</b></small><br>"
+                            f"<span style='font-size:0.8em; line-height:1.2;'>{tdata['title'][:35]}</span>"
+                            f"</div>", unsafe_allow_html=True)
+                
+    with col_ex:
+        st.markdown("### 🏭 Démarrage Rapide")
+        st.info("Chargez un modèle industriel complet en un clic pour tester les simulations.")
+        if ROSS_AVAILABLE and st.button("🔌 Charger Compresseur Centrifuge", use_container_width=True, type="primary"):
+            with st.spinner("Chargement..."):
                 comp = rs.compressor_example()
-                
-                # On sauvegarde le compresseur
                 st.session_state["rotor"] = comp
-                
-                # --- NOUVEAU : ON PLANTE LE DRAPEAU ---
                 st.session_state["rotor_is_compressor"] = True
-                # --------------------------------------
-                
-                if "engine" in st.session_state:
-                    del st.session_state["engine"]
-                _CACHE.clear()
-            
-                st.success(f"✅ Compresseur chargé — {comp.ndof//4} nœuds")
+                _CACHE["free_rotor"] = comp
+                st.success("✅ Compresseur chargé ! Allez dans l'un des modules pour l'analyser.")
 
 # =============================================================================
 # PAGE : MODE PÉDAGOGIQUE — TUTORIELS
@@ -1471,24 +1451,52 @@ def _run_tutorial_step(tut_id, step_idx, step, tut):
 # =============================================================================
 # PAGE : MODE SIMULATION — M1 à M6
 # =============================================================================
+# =============================================================================
+# PAGE : MODE SIMULATION — M1 à M6
+# =============================================================================
 def render_simulation_mode():
-    st.title("🔬 Mode Simulation — Analyses Complètes")
-
-    module = st.sidebar.selectbox("Module :", [
+    st.title("🔬 Mode Simulation")
+    
+    module_options = [
         "M1 🏗️ Constructeur",
         "M2 📊 Statique & Modal",
         "M3 📈 Campbell & Stabilité",
-        "M4 🌀 Balourd & H(jω)",
-        "M5 ⏱️ Temporel & Défauts",
-        "M6 📄 Rapport & Export"  # <--- Ajout de la nouvelle option ici
-    ])
-
-    if "M1" in module:   _render_m1()
-    elif "M2" in module: _render_m2()
-    elif "M3" in module: _render_m3()
-    elif "M4" in module: _render_m4()
-    elif "M5" in module: _render_m5()
-    elif "M6" in module: _render_m6()  # <--- Appel de notre nouvelle fonction
+        "M4 🌀 Balourd",
+        "M5 ⏱️ Temporel",
+        "M6 📄 Rapport PDF"
+    ]
+    
+    # Récupération du module demandé depuis le Dashboard (ou M1 par défaut)
+    default_idx = 0
+    if "sim_module" in st.session_state:
+        target = st.session_state["sim_module"]
+        for i, opt in enumerate(module_options):
+            if target in opt:
+                default_idx = i
+                break
+                
+    # Le nouveau menu horizontal remplace la liste déroulante latérale
+    selected_mod = st.radio(
+        "Workflow d'analyse :", 
+        module_options, 
+        index=default_idx, 
+        horizontal=True, 
+        key="sim_mod_radio",
+        label_visibility="collapsed"
+    )
+    
+    # On sauvegarde le choix au cas où l'utilisateur navigue ailleurs
+    st.session_state["sim_module"] = selected_mod[:2]
+    
+    st.markdown("---")
+    
+    # Routage vers la bonne fonction
+    if "M1" in selected_mod:   _render_m1()
+    elif "M2" in selected_mod: _render_m2()
+    elif "M3" in selected_mod: _render_m3()
+    elif "M4" in selected_mod: _render_m4()
+    elif "M5" in selected_mod: _render_m5()
+    elif "M6" in selected_mod: _render_m6()
 
 
 # ── M1 — Constructeur ─────────────────────────────────────────────────────────
@@ -3043,24 +3051,26 @@ def main():
         ("tut_done", set()),
         ("sim_count", 0),
         ("chat_history", []),
+        ("nav_page", "🏠 Tableau de Bord"),  # NOUVEAU : Initialisation de la navigation
     ]:
         if key not in st.session_state:
             st.session_state[key] = default
 
     # ── Sidebar ────────────────────────────────────────────────────────────────
     with st.sidebar:
-        st.markdown("## ⚙️ ROSSim Online")
+        st.markdown("## ⚙️ ROSSim Pro")
         st.session_state["user_name"] = st.text_input(
             "👤 Votre nom :", st.session_state["user_name"])
         st.markdown("---")
 
-        page = st.radio("🗺️ Navigation :", [
+        # NOUVEAU : Le menu est maintenant lié à la clé "nav_page" de la session
+        st.radio("🗺️ Navigation :", [
             "🏠 Tableau de Bord",
             "🎓 Mode Pédagogique",
             "🔬 Mode Simulation",
             "📚 Bibliothèque",
             "💬 ROSS GPT",
-        ])
+        ], key="nav_page")
 
         # Progression
         if st.session_state["badges"]:
@@ -3070,7 +3080,7 @@ def main():
                 icon = {"gold":"🥇","silver":"🥈","bronze":"🥉"}.get(btype,"🏅")
                 st.markdown(f"{icon} {tid}")
 
-        # Statut ROSS
+        # Statut ROSS (Conservé)
         st.markdown("---")
         if ROSS_AVAILABLE:
             st.success(f"✅ ROSS {ROSS_VERSION}")
@@ -3078,27 +3088,29 @@ def main():
             st.error("❌ ROSS non installé")
             st.code("pip install ross-rotordynamics", language="bash")
 
-        # Rotor en mémoire
+        # Rotor en mémoire (Conservé)
         if _CACHE.get("free_rotor"):
             r = _CACHE["free_rotor"]
             st.markdown("---")
             st.markdown("**🔧 Rotor actif :**")
             st.caption(f"  {len(r.nodes)} nœuds | {r.m:.2f} kg")
 
-        st.caption("ROSSim Online v1.0 • ROSS Open-Source")
+        st.caption("ROSSim Pro v2.0 • ROSS Open-Source")
 
     # ── Routing ────────────────────────────────────────────────────────────────
-    if "Tableau" in page:
+    # NOUVEAU : On utilise directement la variable de session pour savoir où aller
+    current_page = st.session_state["nav_page"]
+    
+    if "Tableau" in current_page:
         render_dashboard()
-    elif "Pédagogique" in page:
+    elif "Pédagogique" in current_page:
         render_tutorial_mode()
-    elif "Simulation" in page:
+    elif "Simulation" in current_page:
         render_simulation_mode()
-    elif "Bibliothèque" in page:
+    elif "Bibliothèque" in current_page:
         render_library()
-    elif "GPT" in page:
+    elif "GPT" in current_page:
         render_ross_gpt()
-
 
 if __name__ == "__main__":
     main()
