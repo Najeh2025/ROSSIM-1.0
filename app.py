@@ -42,11 +42,10 @@ except ImportError:
 # CONFIGURATION GLOBALE
 # =============================================================================
 st.set_page_config(
-    page_title="ROSSim Online",
-    page_icon="⚙️",
-    layout="wide",
-    initial_sidebar_state="expanded",
-    menu_items={"About": "ROSSim Online — Application de Dynamique des Rotors • Basée sur ROSS"}
+    page_title="RotorLab Suite 1.0", 
+    page_icon="⚙️",  # <-- Remplace 🌀 par ton choix ici (ex: ⚙️ ou 🔬)
+    layout="wide", 
+    initial_sidebar_state="expanded"
 )
 
 # ── CSS Global ────────────────────────────────────────────────────────────────
@@ -968,9 +967,10 @@ def render_dashboard():
     uname = st.session_state.get("user_name", "Utilisateur")
     
     # --- NOM PLUS ÉLÉGANT ET HEADER COMPACT ---
-    st.markdown(f"""
+    # --- NOM PLUS ÉLÉGANT ET HEADER COMPACT ---
+    st.markdown("""
     <div style='text-align:center; padding:5px 0 20px'>
-      <h1 style='color:#1F5C8B; font-size:3em; margin:0; font-weight:800; letter-spacing:-1px;'>🌀 ROSSim Pro</h1>
+      <h1 style='color:#1F5C8B; font-size:3em; margin:0; font-weight:800; letter-spacing:-1px;'>🌀 RotorLab Suite 1.0</h1>
       <p style='color:#666; font-size:1.2em; font-weight:500; margin:0'>
         Plateforme d'Ingénierie Avancée pour la Dynamique des Rotors
       </p>
@@ -3065,7 +3065,7 @@ def main():
 
     # ── Sidebar ────────────────────────────────────────────────────────────────
     with st.sidebar:
-        st.markdown("## ⚙️ ROSSim Pro")
+        st.markdown("## ⚙️ RotorLab Suite 1.0")
         st.session_state["user_name"] = st.text_input(
             "👤 Votre nom :", st.session_state["user_name"])
         st.markdown("---")
@@ -3102,7 +3102,7 @@ def main():
             st.markdown("**🔧 Rotor actif :**")
             st.caption(f"  {len(r.nodes)} nœuds | {r.m:.2f} kg")
 
-        st.caption("ROSSim Pro v2.0 • ROSS Open-Source")
+        st.caption("RotorLab Suite 1.0 • ROSS Open-Source")
 
     # ── Routing ────────────────────────────────────────────────────────────────
     # NOUVEAU : On utilise directement la variable de session pour savoir où aller
