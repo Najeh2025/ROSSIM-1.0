@@ -3058,8 +3058,8 @@ def render_about_page():
         """)
         
         st.markdown("### 📬 Contact & Liens")
-        st.write("📧 **Email :** [najeh.benguedria@istls.rnu.tn]")
-        st.write("🔗 **LinkedIn :** [https://www.linkedin.com/in/najeh-ben-guedria-6068a636b/]")
+        st.write("📧 **Email :** najeh.benguedria@istls.rnu.tn")
+        st.write("🔗 **LinkedIn :** https://www.linkedin.com/in/najeh-ben-guedria-6068a636b/")
 
     with col2:
         # Tu peux remplacer cette image par ta photo ou le logo de ton université/association plus tard !
