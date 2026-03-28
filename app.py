@@ -1052,10 +1052,25 @@ def render_tutorial_mode():
     st.title("🎓 Mode Pédagogique — Tutoriels ROSS Officiels")
     st.caption("Tous les tutoriels de ross.readthedocs.io/en/stable/ intégrés interactivement")
 
-    tut_id = st.sidebar.selectbox(
-        "Tutoriel :", list(TUTORIALS.keys()),
-        format_func=lambda x: f"{TUTORIALS[x]['level']} {TUTORIALS[x]['title'][:35]}..."
+    # 1. On récupère la liste exacte de tes tutoriels
+    tut_keys = list(TUTORIALS.keys())
+    
+    # 2. On cherche si le Tableau de Bord a envoyé un ordre (tut_active)
+    default_idx = 0
+    if "tut_active" in st.session_state and st.session_state["tut_active"] in tut_keys:
+        default_idx = tut_keys.index(st.session_state["tut_active"])
+        
+    # 3. On crée le menu déroulant (déplacé au centre de la page pour l'ergonomie) 
+    # et on lui donne l'index de démarrage (default_idx)
+    tut_id = st.selectbox(
+        "📚 Sélectionnez un tutoriel :", 
+        tut_keys, 
+        index=default_idx,
+        format_func=lambda x: f"{TUTORIALS[x]['level']} — {TUTORIALS[x]['title'][:50]}..."
     )
+    
+    # 4. On sauvegarde le choix actuel pour que la mémoire reste à jour
+    st.session_state["tut_active"] = tut_id
     tut = TUTORIALS[tut_id]
 
     # En-tête tutoriel
