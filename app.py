@@ -3202,9 +3202,9 @@ def main():
         render_simulation_mode()
     elif "Bibliothèque" in current_page:
         render_library()
-    elif "Gemini" in current_page:
-        render_gemini_assistant() # On va renommer la fonction juste après !
-    elif "À propos" in current_page:  # <-- NOUVEAU
+    elif "Copilot" in current_page:  # <-- Streamlit va chercher le mot "Copilot"
+        render_gemini_assistant()    # Assure-toi que c'est bien le nom de ta fonction !
+    elif "À propos" in current_page:
         render_about_page()
 
 if __name__ == "__main__":
