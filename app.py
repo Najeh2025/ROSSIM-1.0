@@ -968,47 +968,11 @@ def _plot_freq_resp(res, inp_dof, out_dof, fmax, modal=None):
 def render_dashboard():
     uname = st.session_state.get("user_name", "Utilisateur")
 
-# --- CSS : VERROUILLAGE TOTAL DU LOGO ET DU TEXTE ---
+    # --- NOM PLUS ÉLÉGANT ET HEADER COMPACT ---
     st.markdown("""
-    <style>
-    /* 1. Cible spécifiquement le conteneur du logo pour cacher TOUT bouton à l'intérieur (le zoom) */
-    .logo-verrouille [data-testid="stImage"] button {
-        display: none !important;
-        visibility: hidden !important;
-    }
-    
-    /* 2. Empêche toute interaction (clic, drag, menu contextuel) sur l'image elle-même */
-    .logo-verrouille [data-testid="stImage"] img {
-        pointer-events: none !important;
-        user-select: none !important;
-    }
-
-    /* 3. Désactive le curseur de texte sur le sous-titre (Déjà fonctionnel) */
-    .unselectable-text {
-        user-select: none;
-        -webkit-user-select: none;
-        cursor: default;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-    # --- LOGO PRINCIPAL CENTRÉ (Enveloppé dans le conteneur verrouillé) ---
-    st.markdown("<div class='logo-verrouille'>", unsafe_allow_html=True) # <-- Début du verrouillage
-    
-    col_l, col_img, col_r = st.columns([1, 1.5, 1]) 
-    with col_img:
-        try:
-            st.image("FigureRotorLabSuite2.png", use_container_width=True)
-        except Exception:
-            st.title("RotorLab Suite 1.0")
-            st.warning("⏳ Figure 'FigureRotorLabSuite2.png' non trouvée.")
-            
-    st.markdown("</div>", unsafe_allow_html=True) # <-- Fin du verrouillage
-
-    # --- SOUS-TITRE FIGÉ ---
-    st.markdown("""
-    <div class='unselectable-text' style='text-align:center; padding:0 0 20px'>
-      <p style='color:#666; font-size:1.2em; font-weight:500; margin-top: -15px;'>
+    <div style='text-align:center; padding:5px 0 20px'>
+      <h1 style='color:#1F5C8B; font-size:3em; margin:0; font-weight:800; letter-spacing:-1px;'> RotorLab Suite 1.0</h1>
+      <p style='color:#666; font-size:1.2em; font-weight:500; margin:0'>
         Plateforme d'Ingénierie Avancée pour la Dynamique des Rotors
       </p>
     </div>
