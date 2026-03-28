@@ -1050,7 +1050,7 @@ def render_dashboard():
 # =============================================================================
 def render_tutorial_mode():
     st.title("🎓 Mode Pédagogique — Tutoriels ROSS Officiels")
-    st.caption("Tous les tutoriels de ross.readthedocs.io/en/stable/ intégrés interactivement")
+    st.write("") # Petit espace vide remplaçant l'ancien texte rouge
 
     # 1. On récupère la liste exacte de tes tutoriels
     tut_keys = list(TUTORIALS.keys())
@@ -1060,12 +1060,13 @@ def render_tutorial_mode():
     if "tut_active" in st.session_state and st.session_state["tut_active"] in tut_keys:
         default_idx = tut_keys.index(st.session_state["tut_active"])
         
-    # 3. On crée le menu déroulant (déplacé au centre de la page pour l'ergonomie) 
-    # et on lui donne l'index de démarrage (default_idx)
+    # 3. NOUVEAU : Grand titre élégant + Sélecteur sans étiquette
+    st.markdown("### 📚 Sélectionnez un tutoriel :")
     tut_id = st.selectbox(
-        "📚 Sélectionnez un tutoriel :", 
+        "Label caché", # Streamlit a besoin d'un texte, mais on va le cacher
         tut_keys, 
         index=default_idx,
+        label_visibility="collapsed", # <-- Ceci cache le petit texte par défaut !
         format_func=lambda x: f"{TUTORIALS[x]['level']} — {TUTORIALS[x]['title'][:50]}..."
     )
     
