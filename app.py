@@ -1001,7 +1001,7 @@ def render_dashboard():
             
             # NOUVEAU : Utilisation de on_click au lieu de if st.button(...)
             # Bouton "Primary" élégant avec une flèche
-            st.button(f"➔ Lancer {m_id}", key=f"btn_dash_{m_id}", 
+            st.button(f"⚙️ Lancer {m_id}", key=f"btn_dash_{m_id}", 
                       use_container_width=True, type="primary", 
                       on_click=navigate_to_module, args=(m_id,))
 
