@@ -48,7 +48,10 @@ st.set_page_config(
     layout="wide", 
     initial_sidebar_state="expanded"
 )
-
+# --- Intégration du LOGO ÉPURÉ (recadré) dans la barre latérale ---
+# Note : Vous devez avoir créé 'logo_seulement.png' au préalable
+st.sidebar.image("logo_seulement.png", use_column_width=True)
+st.sidebar.title("Navigation")
 # ── CSS Global ────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
