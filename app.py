@@ -967,7 +967,6 @@ def render_dashboard():
     uname = st.session_state.get("user_name", "Utilisateur")
     
     # --- NOM PLUS ÉLÉGANT ET HEADER COMPACT ---
-    # --- NOM PLUS ÉLÉGANT ET HEADER COMPACT ---
     st.markdown("""
     <div style='text-align:center; padding:5px 0 20px'>
       <h1 style='color:#1F5C8B; font-size:3em; margin:0; font-weight:800; letter-spacing:-1px;'> RotorLab Suite 1.0</h1>
@@ -1009,6 +1008,12 @@ def render_dashboard():
     # --- COMPACTAGE : TUTORIELS & EXEMPLE SUR LA MÊME LIGNE ---
     col_prog, col_ex = st.columns([2, 1])
     
+    # NOUVEAU : Fonction Callback pour naviguer vers les tutoriels
+    def navigate_to_tutorial(target_tut):
+        st.session_state["nav_page"] = "🎓 Mode Pédagogique"
+        # Optionnel : Si ton mode pédagogique utilise une variable pour pré-sélectionner le tuto
+        st.session_state["tut_active"] = target_tut 
+
     with col_prog:
         st.markdown("### 🎓 Tutoriels Rapides")
         tut_done = st.session_state.get("tut_done", set())
@@ -1017,13 +1022,17 @@ def render_dashboard():
             done = tid in tut_done
             with tcols[i]:
                 status = "✅" if done else "▶️"
-                # On calcule la couleur en dehors de la f-string pour éviter l'erreur
                 card_color = "#22863A" if done else "#1F5C8B"
                 
-                st.markdown(f"<div class='card' style='padding:10px; border-left-color:{card_color};'>"
+                # L'affichage visuel (avec un peu de marge en bas)
+                st.markdown(f"<div class='card' style='padding:10px; border-left-color:{card_color}; margin-bottom:5px;'>"
                             f"<small>{status} <b>{tdata['level']}</b></small><br>"
                             f"<span style='font-size:0.8em; line-height:1.2;'>{tdata['title'][:35]}</span>"
                             f"</div>", unsafe_allow_html=True)
+                
+                # NOUVEAU : Le bouton cliquable juste en dessous
+                st.button(f"Ouvrir", key=f"btn_dash_tut_{tid}", use_container_width=True, 
+                          on_click=navigate_to_tutorial, args=(tid,))
                 
     with col_ex:
         st.markdown("### 🏭 Démarrage Rapide")
