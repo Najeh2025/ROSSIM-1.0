@@ -1091,7 +1091,7 @@ def render_dashboard():
                 disk_data = []
                 for disk in comp.disk_elements:
                     disk_data.append({
-                        "Noeud": disk.n,
+                        "nœud": disk.n,
                         "Masse (kg)": disk.m,
                         "Id (kg.m²)": disk.Id,
                         "Ip (kg.m²)": disk.Ip
@@ -1612,7 +1612,10 @@ def _render_m1():
             for _ in range(5)
         ])
         
-        st.session_state.df_disk = pd.DataFrame([{"nœud":2,"id (m)":0.05,"od (m)":0.25,"largeur (m)":0.07}])
+        # --- NOUVEAU MODÈLE UNIVERSEL POUR LES DISQUES ---
+        st.session_state.df_disk = pd.DataFrame([
+            {"nœud": 2, "Masse (kg)": 15.12, "Id (kg.m²)": 0.025, "Ip (kg.m²)": 0.047}
+        ])
         
         st.session_state.df_bear = pd.DataFrame([
             {"nœud":0, "Type":"Palier", "kxx":1e6,"kyy":1e6,"kxy":0.0,"cxx":0.0,"cyy":0.0, "m (kg)":0.0},
@@ -1781,10 +1784,16 @@ def _render_m1():
                         odr = float(r.get("od_R (m)", r.get("od_R", odl)))
                         
                         shaft.append(rs.ShaftElement(L=L, idl=idl, odl=odl, idr=idr, odr=odr, material=mat))
-                             
-                    disks = [rs.DiskElement.from_geometry(n=int(r["nœud"]), material=mat,
-                             width=float(r["largeur (m)"]), i_d=float(r["id (m)"]), o_d=float(r["od (m)"]))
-                             for r in st.session_state.df_disk.to_dict('records')]
+
+                    disk = rs.DiskElement(
+                            n=int(row["nœud"]),
+                            m=float(row["Masse (kg)"]),
+                            Id=float(row["Id (kg.m²)"]),
+                            Ip=float(row["Ip (kg.m²)"])
+                        )
+                    #disks = [rs.DiskElement.from_geometry(n=int(r["nœud"]), material=mat,
+                    #         width=float(r["largeur (m)"]), i_d=float(r["id (m)"]), o_d=float(r["od (m)"]))
+                    #         for r in st.session_state.df_disk.to_dict('records')]
                              
                     bears = []
                     # Les masses ponctuelles seront ajoutées directement aux disques (astuce infaillible)
