@@ -1000,7 +1000,9 @@ def render_dashboard():
                         f"<b style='font-size:1.1em;'>{m_id} {title}</b><br><span style='font-size:0.85em; color:#666;'>{desc}</span></div>", unsafe_allow_html=True)
             
             # NOUVEAU : Utilisation de on_click au lieu de if st.button(...)
-            st.button(f"Ouvrir {m_id}", key=f"btn_dash_{m_id}", use_container_width=True, 
+            # Bouton "Primary" élégant avec une flèche
+            st.button(f"➔ Lancer {m_id}", key=f"btn_dash_{m_id}", 
+                      use_container_width=True, type="primary", 
                       on_click=navigate_to_module, args=(m_id,))
 
     st.markdown("---")
@@ -1031,7 +1033,9 @@ def render_dashboard():
                             f"</div>", unsafe_allow_html=True)
                 
                 # NOUVEAU : Le bouton cliquable juste en dessous
-                st.button(f"Ouvrir", key=f"btn_dash_tut_{tid}", use_container_width=True, 
+                # Bouton "Primary" pour inviter à l'action
+                st.button(f"📖 Démarrer", key=f"btn_dash_tut_{tid}", 
+                          use_container_width=True, type="primary", 
                           on_click=navigate_to_tutorial, args=(tid,))
                 
     with col_ex:
