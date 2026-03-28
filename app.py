@@ -968,60 +968,50 @@ def _plot_freq_resp(res, inp_dof, out_dof, fmax, modal=None):
 def render_dashboard():
     uname = st.session_state.get("user_name", "Utilisateur")
 
-# --- CSS : VERROUILLAGE VISUEL DE L'INTERFACE ---
+# --- CSS : VERROUILLAGE TOTAL DU LOGO ET DU TEXTE ---
     st.markdown("""
     <style>
-    /* 1. Cacher le bouton d'agrandissement (flèches) sur toutes les images */
-    button[title="View fullscreen"] {
+    /* 1. Cible spécifiquement le conteneur du logo pour cacher TOUT bouton à l'intérieur (le zoom) */
+    .logo-verrouille [data-testid="stImage"] button {
         display: none !important;
+        visibility: hidden !important;
     }
-    /* 2. Empêcher de cliquer ou glisser l'image du logo */
-    [data-testid="stImage"] {
+    
+    /* 2. Empêche toute interaction (clic, drag, menu contextuel) sur l'image elle-même */
+    .logo-verrouille [data-testid="stImage"] img {
         pointer-events: none !important;
+        user-select: none !important;
     }
-    /* 3. Désactiver le curseur de texte sur le sous-titre */
+
+    /* 3. Désactive le curseur de texte sur le sous-titre (Déjà fonctionnel) */
     .unselectable-text {
         user-select: none;
         -webkit-user-select: none;
-        cursor: default; /* Force le curseur normal (flèche) au lieu du curseur texte */
+        cursor: default;
     }
     </style>
     """, unsafe_allow_html=True)
 
-    # --- LOGO PRINCIPAL CENTRÉ ---
-    col_l, col_img, col_r = st.columns([1, 1.5, 1]) 
+    # --- LOGO PRINCIPAL CENTRÉ (Enveloppé dans le conteneur verrouillé) ---
+    st.markdown("<div class='logo-verrouille'>", unsafe_allow_html=True) # <-- Début du verrouillage
     
+    col_l, col_img, col_r = st.columns([1, 1.5, 1]) 
     with col_img:
         try:
             st.image("FigureRotorLabSuite2.png", use_container_width=True)
         except Exception:
             st.title("RotorLab Suite 1.0")
             st.warning("⏳ Figure 'FigureRotorLabSuite2.png' non trouvée.")
+            
+    st.markdown("</div>", unsafe_allow_html=True) # <-- Fin du verrouillage
 
-    # --- SOUS-TITRE FIGÉ (Sans curseur texte) ---
-    # Ajout de la classe 'unselectable-text' définie dans le CSS au-dessus
+    # --- SOUS-TITRE FIGÉ ---
     st.markdown("""
     <div class='unselectable-text' style='text-align:center; padding:0 0 20px'>
       <p style='color:#666; font-size:1.2em; font-weight:500; margin-top: -15px;'>
         Plateforme d'Ingénierie Avancée pour la Dynamique des Rotors
       </p>
     </div>
-    """, unsafe_allow_html=True)
-
-# --- CUSTOM CSS POUR LES COULEURS DES BOUTONS ---
-    st.markdown("""
-    <style>
-    /* 1. Transformer les boutons principaux (Simulations) en Bleu élégant */
-    div.stButton > button[kind="primary"] {
-        background-color: #1F5C8B !important;
-        color: white !important;
-        border-color: #1F5C8B !important;
-    }
-    div.stButton > button[kind="primary"]:hover {
-        background-color: #154360 !important;
-        border-color: #154360 !important;
-    }
-    </style>
     """, unsafe_allow_html=True)
     
 # --- ACCÈS RAPIDE AUX MODULES (Cliquables + M6 Renommé) ---
