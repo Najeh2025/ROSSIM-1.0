@@ -1101,12 +1101,24 @@ def render_dashboard():
                 # -- Paliers (df_bear) --
                 bearing_data = []
                 for brg in comp.bearing_elements:
-                    kxx_val = brg.kxx[0] if hasattr(brg.kxx, '__iter__') else brg.kxx
-                    cxx_val = brg.cxx[0] if hasattr(brg.cxx, '__iter__') else brg.cxx
+                    # Extraction sécurisée des valeurs
+                    kxx_val = brg.kxx[0] if hasattr(brg.kxx, '__iter__') else getattr(brg, 'kxx', 0)
+                    kyy_val = brg.kyy[0] if hasattr(brg.kyy, '__iter__') else getattr(brg, 'kyy', 0)
+                    kxy_val = brg.kxy[0] if hasattr(brg.kxy, '__iter__') else getattr(brg, 'kxy', 0)
+                    
+                    cxx_val = brg.cxx[0] if hasattr(brg.cxx, '__iter__') else getattr(brg, 'cxx', 0)
+                    cyy_val = brg.cyy[0] if hasattr(brg.cyy, '__iter__') else getattr(brg, 'cyy', 0)
+                    
+                    # On recrée EXACTEMENT les mêmes colonnes que le tableau par défaut !
                     bearing_data.append({
-                        "Noeud": brg.n,
+                        "nœud": brg.n,               # Attention: n minuscule et "œ"
+                        "Type d'élément": "Palier", 
                         "kxx": kxx_val,
-                        "cxx": cxx_val
+                        "kyy": kyy_val,
+                        "kxy": kxy_val,
+                        "cxx": cxx_val,
+                        "cyy": cyy_val,
+                        "m (kg)": 0                  # 0 par défaut pour un palier
                     })
                 st.session_state["df_bear"] = pd.DataFrame(bearing_data)
 
