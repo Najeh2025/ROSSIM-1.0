@@ -2769,17 +2769,23 @@ unbal  = rotor.run_unbalance_response(node=[3], magnitude=[0.001],
 # =============================================================================
 # PAGE : ROSS GPT — Assistant IA
 # =============================================================================
-def render_ross_gpt():
-    st.title("💬 ROSS GPT — Assistant Virtuel Spécialisé")
-    st.caption("Propulsé par Anthropic Claude • Contexte ROSS injecté automatiquement")
-
+# =============================================================================
+# PAGE : ASSISTANT GEMINI
+# =============================================================================
+def render_gemini_assistant():
+    # Mise en valeur de l'IA de Google
+    st.title("✨ Assistant IA — Propulsé par Gemini")
     st.markdown("""
-    <div class='card'>
-    <b>🤖 ROSS GPT</b> est un assistant IA spécialisé dans la bibliothèque ROSS.<br>
-    Il peut : générer du code Python ROSS, expliquer les résultats, suggérer des optimisations,
-    déboguer votre modèle et répondre à vos questions de rotordynamique.
+    <div style='background-color: #f0f7ff; padding: 15px; border-left: 5px solid #1F5C8B; border-radius: 5px; margin-bottom: 20px;'>
+        <strong>💡 Votre expert virtuel en dynamique des rotors</strong><br>
+        Cet assistant intègre la technologie <b>Google Gemini</b> pour vous aider à analyser vos résultats, 
+        comprendre les normes (comme l'API 684) ou générer des scripts d'automatisation ROSS.
     </div>
     """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+
+    # ... [GARDE ICI TOUT LE RESTE DE TON CODE DE CHAT (st.chat_message, st.chat_input, etc.)] ...
 
     # Quick prompts contextuels
     st.markdown("### 💡 Questions rapides")
@@ -3149,7 +3155,7 @@ def main():
             "🎓 Mode Pédagogique",
             "🔬 Mode Simulation",
             "📚 Bibliothèque",
-            "💬 ROSS GPT",
+            "✨ Assistant Gemini",
             "ℹ️ À propos", # <-- La nouvelle page ajoutée ici
         ], key="nav_page")
 
@@ -3190,8 +3196,8 @@ def main():
         render_simulation_mode()
     elif "Bibliothèque" in current_page:
         render_library()
-    elif "GPT" in current_page:
-        render_ross_gpt()
+    elif "Gemini" in current_page:
+        render_gemini_assistant() # On va renommer la fonction juste après !
     elif "À propos" in current_page:  # <-- NOUVEAU
         render_about_page()
 
