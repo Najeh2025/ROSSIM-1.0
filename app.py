@@ -968,24 +968,40 @@ def _plot_freq_resp(res, inp_dof, out_dof, fmax, modal=None):
 def render_dashboard():
     uname = st.session_state.get("user_name", "Utilisateur")
 
-    # --- LOGO PRINCIPAL CENTRÉ (REMPLACE LE TEXTE) ---
-    # Les nombres [1, 1.5, 1] contrôlent la taille de l'image. 
-    # Plus le chiffre du milieu est petit, plus l'image sera petite.
+# --- CSS : VERROUILLAGE VISUEL DE L'INTERFACE ---
+    st.markdown("""
+    <style>
+    /* 1. Cacher le bouton d'agrandissement (flèches) sur toutes les images */
+    button[title="View fullscreen"] {
+        display: none !important;
+    }
+    /* 2. Empêcher de cliquer ou glisser l'image du logo */
+    [data-testid="stImage"] {
+        pointer-events: none !important;
+    }
+    /* 3. Désactiver le curseur de texte sur le sous-titre */
+    .unselectable-text {
+        user-select: none;
+        -webkit-user-select: none;
+        cursor: default; /* Force le curseur normal (flèche) au lieu du curseur texte */
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # --- LOGO PRINCIPAL CENTRÉ ---
     col_l, col_img, col_r = st.columns([1, 1.5, 1]) 
     
     with col_img:
         try:
-            # On affiche l'image qui sert maintenant de titre principal
             st.image("FigureRotorLabSuite2.png", use_container_width=True)
         except Exception:
-            # Sécurité au cas où l'image n'est pas encore sur GitHub
             st.title("RotorLab Suite 1.0")
             st.warning("⏳ Figure 'FigureRotorLabSuite2.png' non trouvée.")
 
-    # --- SOUS-TITRE SEUL ---
-    # On a supprimé le <h1>, on garde juste la phrase de description élégante
+    # --- SOUS-TITRE FIGÉ (Sans curseur texte) ---
+    # Ajout de la classe 'unselectable-text' définie dans le CSS au-dessus
     st.markdown("""
-    <div style='text-align:center; padding:0 0 20px'>
+    <div class='unselectable-text' style='text-align:center; padding:0 0 20px'>
       <p style='color:#666; font-size:1.2em; font-weight:500; margin-top: -15px;'>
         Plateforme d'Ingénierie Avancée pour la Dynamique des Rotors
       </p>
