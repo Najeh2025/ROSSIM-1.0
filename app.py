@@ -2772,14 +2772,22 @@ unbal  = rotor.run_unbalance_response(node=[3], magnitude=[0.001],
 # =============================================================================
 # PAGE : ASSISTANT GEMINI
 # =============================================================================
+# =============================================================================
+# PAGE : ASSISTANT IA (SMARTROTOR COPILOT)
+# =============================================================================
 def render_gemini_assistant():
-    # Mise en valeur de l'IA de Google
-    st.title("✨ Assistant IA — Propulsé par Gemini")
+    st.title("✨ SmartRotor Copilot — Powered by Gemini AI")
+    
     st.markdown("""
     <div style='background-color: #f0f7ff; padding: 15px; border-left: 5px solid #1F5C8B; border-radius: 5px; margin-bottom: 20px;'>
-        <strong>💡 Votre expert virtuel en dynamique des rotors</strong><br>
-        Cet assistant intègre la technologie <b>Google Gemini</b> pour vous aider à analyser vos résultats, 
-        comprendre les normes (comme l'API 684) ou générer des scripts d'automatisation ROSS.
+        <strong>💡 Your Virtual Expert in Rotor Dynamics</strong><br>
+        Je suis <b>SmartRotor Copilot</b>, ton assistant virtuel spécialisé. Je suis entraîné pour t'aider à :
+        <ul>
+            <li style="margin-bottom: 2px;">Interpréter tes diagrammes de Campbell et de Bode.</li>
+            <li style="margin-bottom: 2px;">Vérifier tes critères de stabilité selon les normes API 684.</li>
+            <li style="margin-bottom: 2px;">Maîtriser la syntaxe de la bibliothèque open-source ROSS.</li>
+        </ul>
+        <i>Pose-moi ta question ci-dessous !</i>
     </div>
     """, unsafe_allow_html=True)
     
@@ -2844,7 +2852,7 @@ def render_gemini_assistant():
             st.markdown(user_input)
 
         with st.chat_message("assistant"):
-            with st.spinner("Assistant IA réfléchit..."):
+            with st.spinner("SmartRotor Copilot réfléchit..."):
                 response = _call_ross_gpt(user_input, context_json,
                                            st.session_state["chat_history"][:-1])
             st.markdown(response)
@@ -2884,7 +2892,7 @@ def _call_ross_gpt(user_msg: str, context: dict, history: list) -> str:
                 model_name = m
 
         # 2. Le contexte injecté
-        system_prompt = f"""Tu es ROSS GPT, un expert spécialisé dans la bibliothèque Python ROSS.
+        system_prompt = f"""Tu es SmartRotor Copilot, un expert spécialisé dans la bibliothèque Python ROSS.
 Tu maîtrises parfaitement : ShaftElement, DiskElement, BearingElement, Campbell, modes propres, instabilités.
 Contexte du modèle actuellement chargé :
 {json.dumps(context, ensure_ascii=False, indent=2)}
@@ -2896,7 +2904,7 @@ Réponds en français, sois pédagogique et fournis du code ROSS fonctionnel."""
         # 4. Historique de conversation
         gemini_history = [
             {"role": "user", "parts": [system_prompt]},
-            {"role": "model", "parts": ["C'est bien noté. Je suis ROSS GPT, prêt à analyser vos rotors et à générer du code Python !"]}
+            {"role": "model", "parts": ["C'est bien noté. Je suis SmartRotor Copilot, prêt à analyser vos rotors et à générer du code Python !"]}
         ]
 
         for h in history[-6:]:  
@@ -3153,7 +3161,7 @@ def main():
             "🎓 Mode Pédagogique",
             "🔬 Mode Simulation",
             "📚 Bibliothèque",
-            "✨ Assistant Gemini",
+            "✨ SmartRotor Copilot",
             "ℹ️ À propos", # <-- La nouvelle page ajoutée ici
         ], key="nav_page")
 
