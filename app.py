@@ -29,6 +29,7 @@ from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, Tabl
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage
+import streamlit as st
 
 try:
     import ross as rs
@@ -47,6 +48,17 @@ st.set_page_config(
     layout="wide", 
     initial_sidebar_state="expanded"
 )
+# --- Intégration de l'image de présentation ---
+# Streamlit va chercher le fichier dans le même dossier
+st.image(
+    "FigureRotorLabSuite2.png",
+    use_column_width=True, # Adapte l'image à la largeur de la colonne centrale
+    caption="RotorLab Suite — Intégration et Analyse Technologique"
+)
+
+# --- Contenu de l'application ---
+st.title("Bienvenue dans RotorLab Suite")
+st.write("---")
 
 # ── CSS Global ────────────────────────────────────────────────────────────────
 st.markdown("""
