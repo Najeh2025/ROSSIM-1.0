@@ -1062,7 +1062,7 @@ def render_dashboard():
         st.info("Chargez un modèle industriel complet en un clic pour tester les simulations.")
         if ROSS_AVAILABLE and st.button("🔌 Charger Compresseur Centrifuge", use_container_width=True, type="primary"):
             with st.spinner("Chargement..."):
-                import pandas as pd # Import par sécurité
+                import pandas as pd
                 
                 # 1. Création du modèle ROSS en arrière-plan
                 comp = rs.compressor_example()
@@ -1071,10 +1071,10 @@ def render_dashboard():
                 _CACHE["free_rotor"] = comp
                 
                 # ========================================================
-                # 2. SYNCHRONISATION : On force la mise à jour des tableaux
+                # 2. SYNCHRONISATION DES TABLEAUX DE L'INTERFACE
                 # ========================================================
                 
-                # -- Mise à jour de l'Arbre (Shaft) --
+                # -- Arbre (df_shaft) --
                 shaft_data = []
                 for el in comp.shaft_elements:
                     shaft_data.append({
@@ -1083,11 +1083,11 @@ def render_dashboard():
                         "od_L (m)": el.odl,
                         "id_R (m)": el.idr,
                         "od_R (m)": el.odr
+                        # Ajoute ici la colonne matériau si tu l'as dans ton M1
                     })
-                # Attention: Vérifie que "df_shaft" est bien le nom de ta variable dans le module M1
                 st.session_state["df_shaft"] = pd.DataFrame(shaft_data)
                 
-                # -- Mise à jour des Disques (Disks) --
+                # -- Disques (df_disk) --
                 disk_data = []
                 for disk in comp.disk_elements:
                     disk_data.append({
@@ -1096,13 +1096,11 @@ def render_dashboard():
                         "Id (kg.m²)": disk.Id,
                         "Ip (kg.m²)": disk.Ip
                     })
-                # Attention: Vérifie que "df_disks" est bien le nom de ta variable dans le module M1
-                st.session_state["df_disks"] = pd.DataFrame(disk_data)
+                st.session_state["df_disk"] = pd.DataFrame(disk_data)
                 
-                # -- Mise à jour des Paliers (Bearings) --
+                # -- Paliers (df_bear) --
                 bearing_data = []
                 for brg in comp.bearing_elements:
-                    # On extrait la première valeur de raideur/amortissement (ROSS utilise des tableaux)
                     kxx_val = brg.kxx[0] if hasattr(brg.kxx, '__iter__') else brg.kxx
                     cxx_val = brg.cxx[0] if hasattr(brg.cxx, '__iter__') else brg.cxx
                     bearing_data.append({
@@ -1110,8 +1108,7 @@ def render_dashboard():
                         "kxx": kxx_val,
                         "cxx": cxx_val
                     })
-                # Attention: Vérifie que "df_bearings" est bien le nom de ta variable dans le module M1
-                st.session_state["df_bearings"] = pd.DataFrame(bearing_data)
+                st.session_state["df_bear"] = pd.DataFrame(bearing_data)
 
                 # 3. Message de succès
                 st.success("✅ Compresseur chargé ! Allez dans l'un des modules pour l'analyser.")
