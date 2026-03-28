@@ -1058,8 +1058,9 @@ def render_dashboard():
                           on_click=navigate_to_tutorial, args=(tid,))
                 
     with col_ex:
-        st.markdown("### 🏭 Démarrage Rapide")
-        st.info("Chargez un modèle industriel complet en un clic pour tester les simulations.")
+        # --- NOUVEAU TITRE PLUS PROFESSIONNEL ---
+        st.markdown("### 🏭 Cas d'Étude Industriel")
+        st.info("Validation sur un système réel : chargez le modèle complet d'un compresseur centrifuge à 56 nœuds.")
         if ROSS_AVAILABLE and st.button("🔌 Charger Compresseur Centrifuge", use_container_width=True, type="primary"):
             with st.spinner("Chargement..."):
                 import pandas as pd
