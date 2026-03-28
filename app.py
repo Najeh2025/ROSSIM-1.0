@@ -967,12 +967,26 @@ def _plot_freq_resp(res, inp_dof, out_dof, fmax, modal=None):
 # =============================================================================
 def render_dashboard():
     uname = st.session_state.get("user_name", "Utilisateur")
+
+    # --- LOGO PRINCIPAL CENTRÉ (REMPLACE LE TEXTE) ---
+    # Les nombres [1, 1.5, 1] contrôlent la taille de l'image. 
+    # Plus le chiffre du milieu est petit, plus l'image sera petite.
+    col_l, col_img, col_r = st.columns([1, 1.5, 1]) 
     
-    # --- NOM PLUS ÉLÉGANT ET HEADER COMPACT ---
+    with col_img:
+        try:
+            # On affiche l'image qui sert maintenant de titre principal
+            st.image("FigureRotorLabSuite2.png", use_container_width=True)
+        except Exception:
+            # Sécurité au cas où l'image n'est pas encore sur GitHub
+            st.title("RotorLab Suite 1.0")
+            st.warning("⏳ Figure 'FigureRotorLabSuite2.png' non trouvée.")
+
+    # --- SOUS-TITRE SEUL ---
+    # On a supprimé le <h1>, on garde juste la phrase de description élégante
     st.markdown("""
-    <div style='text-align:center; padding:5px 0 20px'>
-      <h1 style='color:#1F5C8B; font-size:3em; margin:0; font-weight:800; letter-spacing:-1px;'> RotorLab Suite 1.0</h1>
-      <p style='color:#666; font-size:1.2em; font-weight:500; margin:0'>
+    <div style='text-align:center; padding:0 0 20px'>
+      <p style='color:#666; font-size:1.2em; font-weight:500; margin-top: -15px;'>
         Plateforme d'Ingénierie Avancée pour la Dynamique des Rotors
       </p>
     </div>
