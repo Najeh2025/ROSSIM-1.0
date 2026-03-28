@@ -976,6 +976,22 @@ def render_dashboard():
     </div>
     """, unsafe_allow_html=True)
 
+# --- CUSTOM CSS POUR LES COULEURS DES BOUTONS ---
+    st.markdown("""
+    <style>
+    /* 1. Transformer les boutons principaux (Simulations) en Bleu élégant */
+    div.stButton > button[kind="primary"] {
+        background-color: #1F5C8B !important;
+        color: white !important;
+        border-color: #1F5C8B !important;
+    }
+    div.stButton > button[kind="primary"]:hover {
+        background-color: #154360 !important;
+        border-color: #154360 !important;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+    
 # --- ACCÈS RAPIDE AUX MODULES (Cliquables + M6 Renommé) ---
     st.markdown("### 🚀 Accès Rapide aux Modules")
     modules = [
@@ -1034,8 +1050,9 @@ def render_dashboard():
                 
                 # NOUVEAU : Le bouton cliquable juste en dessous
                 # Bouton "Primary" pour inviter à l'action
+                # Bouton standard (qui sera blanc/épuré pour différencier)
                 st.button(f"📖 Démarrer", key=f"btn_dash_tut_{tid}", 
-                          use_container_width=True, type="primary", 
+                          use_container_width=True, 
                           on_click=navigate_to_tutorial, args=(tid,))
                 
     with col_ex:
