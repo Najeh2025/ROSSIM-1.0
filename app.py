@@ -50,16 +50,6 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- Intégration du LOGO ÉPURÉ (recadré) dans la barre latérale ---
-# Note : Vous devez avoir créé 'logo_seulement.png' au préalable
-st.sidebar.image("LogoRotorLabSuite.png", use_column_width=True)
-st.sidebar.title("Navigation")
-# Votre menu...
-
-# --- Contenu de l'application (Main) ---
-# st.title("RotorLab Suite — Analyse")
-# st.write("Cette plateforme utilise la bibliothèque Python ROSS pour vos simulations.")
-
 # ── CSS Global ────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
