@@ -968,23 +968,10 @@ def _plot_freq_resp(res, inp_dof, out_dof, fmax, modal=None):
 def render_dashboard():
     uname = st.session_state.get("user_name", "Utilisateur")
     
-# --- NOUVEAU : AJOUT DE LA FIGURE AU-DESSUS DU TITRE (CENTRÉE) ---
-    # Nous utilisons des colonnes pour centrer l'image [Marge, Logo, Marge]
-    margin_l, logo_c, margin_r = st.columns([1, 3, 1]) # Ratios ajustables pour la taille visuelle
-    with logo_c:
-        # Bloc try...except de sécurité pour éviter le plantage
-        try:
-            # On demande à Streamlit d'afficher la figure
-            st.image("FigureRotorLabSuite2.png", use_container_width=True)
-        except Exception:
-            # Message affiché SI l'image n'est pas trouvée sur GitHub
-            st.warning("⏳ Figure 'FigureRotorLabSuite2.png' non trouvée sur GitHub. Pensez à l'uploader.")
-
-    # --- ANCIEN BLOC TITRE EXISTANT (NE PAS SUPPRIMER) ---
-    # J'ai juste réduit le padding supérieur pour que le titre reste proche du logo
+    # --- NOM PLUS ÉLÉGANT ET HEADER COMPACT ---
     st.markdown("""
-    <div style='text-align:center; padding:0 0 20px'> # <- J'ai changé 5px à 0
-      <h1 style='color:#1F5C8B; font-size:3em; margin:0; font-weight:800; letter-spacing:-1px;'>RotorLab Suite 1.0</h1>
+    <div style='text-align:center; padding:5px 0 20px'>
+      <h1 style='color:#1F5C8B; font-size:3em; margin:0; font-weight:800; letter-spacing:-1px;'> RotorLab Suite 1.0</h1>
       <p style='color:#666; font-size:1.2em; font-weight:500; margin:0'>
         Plateforme d'Ingénierie Avancée pour la Dynamique des Rotors
       </p>
