@@ -2785,8 +2785,6 @@ def render_gemini_assistant():
     
     st.markdown("---")
 
-    # ... [GARDE ICI TOUT LE RESTE DE TON CODE DE CHAT (st.chat_message, st.chat_input, etc.)] ...
-
     # Quick prompts contextuels
     st.markdown("### 💡 Questions rapides")
     quick_prompts = [
@@ -2835,7 +2833,7 @@ def render_gemini_assistant():
         with st.chat_message(msg["role"]):
             st.markdown(msg["content"])
 
-    user_input = st.chat_input("Posez votre question ROSS...",
+    user_input = st.chat_input("Posez votre question Assistant IA...",
                                 key="gpt_chat_input")
     if not user_input:
         user_input = st.session_state.pop("gpt_input", None)
