@@ -24,6 +24,7 @@ import json
 import io
 import traceback
 import google.generativeai as genai
+import streamlit as st
 from reportlab.lib.pagesizes import A4
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet
@@ -48,6 +49,16 @@ st.set_page_config(
     layout="wide", 
     initial_sidebar_state="expanded"
 )
+
+# --- Intégration du LOGO ÉPURÉ (recadré) dans la barre latérale ---
+# Note : Vous devez avoir créé 'logo_seulement.png' au préalable
+st.sidebar.image("LogoRotorLabSuite.png", use_column_width=True)
+st.sidebar.title("Navigation")
+# Votre menu...
+
+# --- Contenu de l'application (Main) ---
+# st.title("RotorLab Suite — Analyse")
+# st.write("Cette plateforme utilise la bibliothèque Python ROSS pour vos simulations.")
 
 # ── CSS Global ────────────────────────────────────────────────────────────────
 st.markdown("""
