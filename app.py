@@ -3132,7 +3132,8 @@ def render_about_page():
         
         st.markdown("### 📬 Contact & Liens")
         st.write("📧 **Email :** najeh.benguedria@istls.rnu.tn")
-        st.write("🔗 **LinkedIn :** https://www.linkedin.com/in/najeh-ben-guedria-6068a636b/")
+        st.write("📞 **Téléphone :** +216 22 771 276")
+        # st.write("🔗 **LinkedIn :** https://www.linkedin.com/in/najeh-ben-guedria-6068a636b/")
 
     with col2:
        # NOUVEAU : Intégration de l'image avec sécurité anti-plantage
