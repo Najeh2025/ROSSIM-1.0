@@ -2663,14 +2663,13 @@ def _render_m6():
 
     st.markdown("---")
 
-    # 2. Bouton de génération
+    # 2. Bouton de génération PDF
     col_btn, col_vide = st.columns([1, 2])
     with col_btn:
         if st.button("🚀 Générer le Rapport PDF", type="primary", use_container_width=True):
             with st.spinner("Création du document avec ReportLab..."):
                 try:
                     # On récupère les données sélectionnées
-                    df_m = st.session_state["df_modal"] if inc_modal else None
                     # Récupération conditionnelle
                     # 1. Récupération des données textuelles (Tableaux)
                     df_m = st.session_state.get("df_modal") if inc_modal else None
@@ -2682,9 +2681,8 @@ def _render_m6():
                     img_r = st.session_state.get("img_rotor")
                     img_c = st.session_state.get("img_campbell_plot") if inc_campbell else None
                     
-                    # 3. NOUVEAU : Appel de la fonction avec les 7 arguments
+                    # 3. NOUVEAU : Appel de la fonction avec les arguments
                     pdf_bytes = generate_pdf_reportlab(rotor, df_m, df_c, df_api_data, api_p, img_r, img_c)
-                    
                     
                     st.success("✅ Rapport généré !")
                     st.download_button(
@@ -2696,6 +2694,41 @@ def _render_m6():
                     )
                 except Exception as e:
                     st.error(f"❌ Erreur lors de la génération : {e}")
+
+    # ==========================================
+    # 3. NOUVELLE SECTION : EXPORT EXCEL
+    # ==========================================
+    st.markdown("---") # Séparateur visuel
+    st.markdown("### 📊 Exporter les données du modèle")
+    st.info("Téléchargez les paramètres complets du rotor (Arbre, Disques, Paliers) au format Excel pour les analyser ailleurs.")
+
+    # On vérifie que les tableaux existent bien en mémoire
+    if "df_shaft" in st.session_state and "df_disk" in st.session_state and "df_bear" in st.session_state:
+        import io
+        import pandas as pd
+        
+        # Création d'un fichier Excel virtuel en mémoire
+        buffer = io.BytesIO()
+        
+        # Écriture des données dans différentes feuilles (onglets)
+        try:
+            with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                st.session_state["df_shaft"].to_excel(writer, sheet_name='1_Arbre', index=False)
+                st.session_state["df_disk"].to_excel(writer, sheet_name='2_Disques', index=False)
+                st.session_state["df_bear"].to_excel(writer, sheet_name='3_Paliers', index=False)
+            
+            # Création du bouton de téléchargement Streamlit
+            st.download_button(
+                label="📥 Télécharger les données Excel (.xlsx)",
+                data=buffer.getvalue(),
+                file_name="Parametres_RotorLab_Suite.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                type="secondary" # "secondary" pour le différencier du bouton PDF
+            )
+        except ModuleNotFoundError:
+            st.error("⚠️ La bibliothèque 'xlsxwriter' est manquante. Ajoutez-la pour activer l'export Excel.")
+    else:
+        st.warning("⚠️ Les données du rotor ne sont pas encore initialisées.")
                     
 # =============================================================================
 # PAGE : BIBLIOTHÈQUE ROSS
