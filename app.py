@@ -2844,7 +2844,7 @@ def render_gemini_assistant():
             st.markdown(user_input)
 
         with st.chat_message("assistant"):
-            with st.spinner("ROSS GPT réfléchit..."):
+            with st.spinner("Assistant IA réfléchit..."):
                 response = _call_ross_gpt(user_input, context_json,
                                            st.session_state["chat_history"][:-1])
             st.markdown(response)
