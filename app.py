@@ -2186,28 +2186,31 @@ def _render_m3():
 
             for i in range(len(diff) - 1):
                 if diff[i] * diff[i + 1] <= 0:
-                    # Interpolation linéaire exacte de l'intersection 1X
-                    denom  = diff[i + 1] - diff[i]
+                    denom = diff[i + 1] - diff[i]
                     if abs(denom) < 1e-12:
-                        continue  # Évite division par zéro
+                        continue
                     vc_rad   = speed_rad[i] - diff[i] * (speed_rad[i+1] - speed_rad[i]) / denom
                     vc_rpm   = vc_rad * 30 / np.pi
                     ld_exact = float(np.interp(vc_rad, speed_rad, ld_mode))
                     fn_exact = vc_rad / (2 * np.pi)
-
+        
+                    # Détection FW / BW par la pente locale
+                    slope = (wn_mode[i+1] - wn_mode[i]) / (speed_rad[i+1] - speed_rad[i] + 1e-12)
+                    whirl_label = "FW ↑" if slope > 0 else "BW ↓"
+        
                     in_zone = zl <= vc_rpm <= zh
                     ok      = not in_zone and ld_exact >= 0.1
-
+        
                     results_api.append({
-                        "Mode":                    mode + 1,
-                        "fn (Hz)":                 f"{fn_exact:.2f}",
-                        "Vitesse critique (RPM)":  f"{vc_rpm:.0f}",
-                        "Log Dec exact":           f"{ld_exact:.4f}",
-                        "Zone interdite":          "❌ OUI" if in_zone else "✅ NON",
-                        "Log Dec ≥ 0.1":           "✅" if ld_exact >= 0.1 else "❌",
-                        "Conforme API 684":        "✅" if ok else "❌",
+                        "Mode":                   mode + 1,
+                        "Précession":             whirl_label,
+                        "fn (Hz)":                f"{fn_exact:.2f}",
+                        "Vitesse critique (RPM)": f"{vc_rpm:.0f}",
+                        "Log Dec exact":          f"{ld_exact:.4f}",
+                        "Zone interdite":         "❌ OUI" if in_zone else "✅ NON",
+                        "Log Dec ≥ 0.1":          "✅" if ld_exact >= 0.1 else "❌",
+                        "Conforme API 684":       "✅" if ok else "❌",
                     })
-
         if not results_api:
             st.success("✅ Aucune vitesse critique (intersection 1X) dans la plage calculée.")
             st.info(f"Essayez d'augmenter la vitesse max (actuellement "
