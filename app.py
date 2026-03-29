@@ -2199,7 +2199,7 @@ def _render_m3():
             kxy_val = st.slider("Raideur croisée Kxy (N/m)", 0, int(1e7), 0, step=int(5e5), key="m3_kxy")
             st.caption("Moteur d'instabilité (Kxy = -Kyx)")
         with col_c:
-            cxy_val = st.slider("Amortissement croisé Cxy (N.s/m)", 0, int(1e5), 0, step=int(5000), key="m3_cxy")
+            cxy_val = st.slider("Amortissement croisé Cxy (N.s/m)", 0, int(1e5), 0, step=int(100), key="m3_cxy")
             st.caption("Couplage fluide (Cxy = Cyx)")
             
         if st.button("Recalculer la stabilité", type="primary", key="m3_kxy_btn"):
