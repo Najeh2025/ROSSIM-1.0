@@ -343,7 +343,8 @@ class SimulationEngine:
     def run_campbell(self, vmax_rpm=8000.0, n=100):
         try:
             sp = np.linspace(0, float(vmax_rpm) * np.pi / 30, int(n))
-            return self.rotor.run_campbell(sp)
+            # 🚀 L'ASTUCE INDUSTRIELLE EST ICI : frequencies=12
+            return self.rotor.run_campbell(sp, frequencies=12) 
         except Exception as e:
             self._err = str(e); return None
 
@@ -2285,7 +2286,7 @@ def _plot_camp_unbal(res, rotor, probe_node, probe_dof, freq_max):
     try:
         freqs, amps, _ = _extract_unbal(res, probe_node, probe_dof)
         speeds = np.linspace(0, freq_max*2*np.pi, 40)
-        camp   = rotor.run_campbell(speeds)
+        camp   = rotor.run_campbell(speeds, frequencies=12)
         spd_rpm = speeds * 30 / np.pi
         fig = make_subplots(specs=[[{"secondary_y": True}]])
         if hasattr(camp, 'wd') and camp.wd is not None:
