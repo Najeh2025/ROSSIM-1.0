@@ -2126,7 +2126,7 @@ def _render_m3():
         # On utilise les variables op_rpm, zl et zh définies en haut du module
         # 1. On estime les vitesses critiques avec une vitesse faible pour éviter 
                 # de fausser l'ordre des modes avec l'effet gyroscopique.
-                modal_base = rotor.run_modal(speed=100 * np.pi / 30) 
+        modal_base = rotor.run_modal(speed=100 * np.pi / 30) 
                 
                 api_data = []
                 modes_to_check = min(4, len(modal_base.wn))
