@@ -1996,93 +1996,121 @@ def _render_m3():
 
     eng = SimulationEngine(rotor)
 
-    # --- NOUVEAU : Paramètre global pour le M3 ---
     st.markdown("### 🎯 Paramètres de fonctionnement")
-    op_rpm = st.number_input("Vitesse opérationnelle cible (RPM)", 500.0, 30000.0, 3000.0, step=100.0, key="m3_op_global")
-    zl, zh = op_rpm * 0.85, op_rpm * 1.15  # Calcul automatique de la zone API (± 15%)
+    op_rpm = st.number_input(
+        "Vitesse opérationnelle cible (RPM)",
+        500.0, 30000.0, 3000.0, step=100.0, key="m3_op_global"
+    )
+    zl, zh = op_rpm * 0.85, op_rpm * 1.15
 
-    tab_camp, tab_stab, tab_api = st.tabs(["📈 Campbell", "📉 Stabilité (Log Dec)", "🔧 Vérification API 684"])
+    tab_camp, tab_stab, tab_api = st.tabs(
+        ["📈 Campbell", "📉 Stabilité (Log Dec)", "🔧 Vérification API 684"]
+    )
 
+    # ── ONGLET 1 : CAMPBELL ───────────────────────────────────────────────────
     with tab_camp:
         col1, col2 = st.columns(2)
         with col1:
             vmax = st.slider("Vitesse max (RPM)", 2000, 30000, 10000, key="m3_vmax")
         with col2:
-            #npts = st.slider("Résolution (points)", 50, 200, 100, key="m3_npts")
-            npts = st.slider("Résolution (points)", 10, 100, 20, key="m3_npts")
+            # CORRECTION #6 : minimum 50 pts pour interpolation 1X fiable
+            npts = st.slider("Résolution (points)", 50, 200, 100, key="m3_npts")
+
+        if op_rpm > vmax:
+            st.warning(f"⚠️ Vitesse opérationnelle ({op_rpm:.0f} RPM) > Vitesse max "
+                       f"({vmax:.0f} RPM) — la zone API 684 ne sera pas visible.")
+
         if st.button("📈 Tracer le Campbell", type="primary", key="m3_camp"):
             with st.spinner(f"Calcul Campbell ({npts} points)..."):
                 camp = eng.run_campbell(vmax, npts)
+
             if camp:
-                _CACHE["free_camp"] = camp
+                _CACHE["free_camp"]      = camp
                 _CACHE["free_camp_vmax"] = vmax
                 _CACHE["free_camp_npts"] = npts
-                
-                try: 
-                    # 1. On récupère la figure de base générée par ROSS
+
+                try:
                     fig_camp = camp.plot()
-                    
-                    # 2. Ajout de la zone API 684
                     fig_camp.add_vrect(
-                        x0=zl, x1=zh, 
-                        fillcolor="red", opacity=0.15, line_width=1, line_dash="dot", line_color="red",
-                        annotation_text="Zone Interdite (API 684)", annotation_position="top left",
+                        x0=zl, x1=zh,
+                        fillcolor="red", opacity=0.15,
+                        line_width=1, line_dash="dot", line_color="red",
+                        annotation_text="Zone Interdite (API 684)",
+                        annotation_position="top left",
                         annotation_font_color="red"
                     )
-                    fig_camp.add_vline(x=op_rpm, line_dash="dash", line_color="darkred", annotation_text=" Vitesse Op.")
-                    
-                    # 3. Affichage sur l'interface
+                    fig_camp.add_vline(
+                        x=op_rpm, line_dash="dash", line_color="darkred",
+                        annotation_text=" Vitesse Op."
+                    )
                     st.plotly_chart(fig_camp, use_container_width=True)
-                    
-                    # 4. Capture de l'image pour le PDF
-                    st.session_state["img_campbell_plot"] = fig_camp.to_image(format="png", width=700, height=450)
-                    
-                except Exception: 
-                    # Le graphique de secours ne s'affiche QUE si le principal plante
+
+                    # CORRECTION #7 : capture image protégée
+                    try:
+                        import kaleido  # noqa
+                        _CACHE["img_campbell_plot"] = fig_camp.to_image(
+                            format="png", width=700, height=450
+                        )
+                    except ImportError:
+                        pass  # kaleido absent — export image désactivé silencieusement
+
+                except Exception:
                     _plot_campbell_fallback(camp, vmax, npts)
-                
-                # ... (Garde la suite du code modal_0 = eng.run_modal(0) etc.) ...
-                    
+
+                # CORRECTION #2 : stocker modal_0 dans _CACHE, pas session_state
                 modal_0 = eng.run_modal(0)
                 if modal_0:
-                    fn = modal_0.wn / (2*np.pi)
+                    _CACHE["free_modal"] = modal_0
+                    fn = modal_0.wn / (2 * np.pi)
                     df_vc = pd.DataFrame({
-                        "Mode": range(1, len(fn[:6])+1),
-                        "fn (Hz)": [f"{v:.2f}" for v in fn[:6]],
-                        "Vitesse critique (RPM)": [f"{v*60:.0f}" for v in fn[:6]],
+                        "Mode":                  range(1, len(fn[:6]) + 1),
+                        "fn (Hz)":               [f"{v:.2f}" for v in fn[:6]],
+                        "Vitesse critique (RPM)": [f"{v * 60:.0f}" for v in fn[:6]],
                     })
-                    st.session_state["df_campbell"] = df_vc
+                    _CACHE["df_campbell"] = df_vc
                     st.markdown("**⚡ Vitesses critiques (intersections 1X) :**")
                     st.dataframe(df_vc, use_container_width=True, hide_index=True)
             else:
                 st.error(f"Erreur : {eng.last_error}")
 
+        # Rappel visuel si déjà calculé
+        elif _CACHE.get("free_camp") and _CACHE.get("df_campbell") is not None:
+            st.info("Campbell déjà calculé — appuyez à nouveau pour recalculer.")
+            st.dataframe(_CACHE["df_campbell"], use_container_width=True, hide_index=True)
+
+    # ── ONGLET 2 : STABILITÉ ──────────────────────────────────────────────────
     with tab_stab:
         camp = _CACHE.get("free_camp")
         vmax = _CACHE.get("free_camp_vmax", 10000)
         npts = _CACHE.get("free_camp_npts", 100)
         if camp is None:
             st.info("Calculez d'abord le Campbell (onglet précédent)"); return
+
         st.info("Log Dec < 0 → Instabilité | Log Dec ≥ 0.1 → Conforme API 684")
         fig_s = go.Figure()
         try:
-            ld = camp.log_dec
+            ld  = camp.log_dec
             spd = np.linspace(0, vmax, npts)
             colors = ["#1F5C8B","#22863A","#C55A11","#7B1FA2","#117A8B","#C00000"]
             for i in range(min(6, ld.shape[1])):
-                fig_s.add_trace(go.Scatter(x=spd, y=ld[:,i], name=f"Mode {i+1}",
-                                            line=dict(color=colors[i%len(colors)])))
-            fig_s.add_hline(y=0, line_dash="dash", line_color="red",
+                fig_s.add_trace(go.Scatter(
+                    x=spd, y=ld[:, i],
+                    name=f"Mode {i+1}",
+                    line=dict(color=colors[i % len(colors)])
+                ))
+            fig_s.add_hline(y=0,   line_dash="dash", line_color="red",
                              annotation_text="Seuil instabilité (0)")
-            fig_s.add_hline(y=0.1, line_dash="dot", line_color="orange",
+            fig_s.add_hline(y=0.1, line_dash="dot",  line_color="orange",
                              annotation_text="Seuil API 684 (0.1)")
-            fig_s.update_layout(xaxis_title="Vitesse (RPM)", yaxis_title="Log Décrément",
-                                  title="Stabilité des modes vs vitesse", height=450)
+            fig_s.update_layout(
+                xaxis_title="Vitesse (RPM)", yaxis_title="Log Décrément",
+                title="Stabilité des modes vs vitesse", height=450
+            )
             st.plotly_chart(fig_s, use_container_width=True)
         except Exception as e:
             st.warning(f"Log Dec non disponible : {e}")
 
-        # Graphique instabilité par Kxy
+        # Influence Kxy
         st.markdown("---")
         st.markdown("**🎛️ Influence de la raideur croisée Kxy sur la stabilité**")
         kxy_val = st.slider("Kxy (N/m)", 0, int(1e7), 0, step=int(5e5), key="m3_kxy")
@@ -2094,15 +2122,18 @@ def _render_m3():
                     fig_kxy = go.Figure()
                     try:
                         for i in range(min(4, camp_kxy.log_dec.shape[1])):
-                            ld_v = camp_kxy.log_dec[:,i]
                             fig_kxy.add_trace(go.Scatter(
-                                x=np.linspace(0,vmax,50), y=ld_v, name=f"Mode {i+1}"))
+                                x=np.linspace(0, vmax, 50),
+                                y=camp_kxy.log_dec[:, i], name=f"Mode {i+1}"
+                            ))
                         fig_kxy.add_hline(y=0, line_dash="dash", line_color="red")
-                        fig_kxy.update_layout(title=f"Stabilité avec Kxy = {kxy_val:.0e} N/m",
-                                               xaxis_title="Vitesse (RPM)", yaxis_title="Log Dec")
+                        fig_kxy.update_layout(
+                            title=f"Stabilité avec Kxy = {kxy_val:.0e} N/m",
+                            xaxis_title="Vitesse (RPM)", yaxis_title="Log Dec"
+                        )
                         st.plotly_chart(fig_kxy, use_container_width=True)
                         if kxy_val > 5e6:
-                            st.markdown("<div class='card-red'>❌ Kxy élevé — risque d'instabilité détecté !</div>",
+                            st.markdown("<div class='card-red'>❌ Kxy élevé — risque d'instabilité !</div>",
                                          unsafe_allow_html=True)
                         elif kxy_val > 2e6:
                             st.markdown("<div class='card-orange'>⚠️ Kxy modéré — surveillez le Log Dec</div>",
@@ -2110,111 +2141,109 @@ def _render_m3():
                         else:
                             st.markdown("<div class='card-green'>✅ Kxy faible — système stable</div>",
                                          unsafe_allow_html=True)
-                    except Exception: st.warning("Log Dec non disponible pour cette configuration")
+                    except Exception:
+                        st.warning("Log Dec non disponible pour cette configuration")
 
+    # ── ONGLET 3 : API 684 ────────────────────────────────────────────────────
     with tab_api:
         camp = _CACHE.get("free_camp")
         if camp is None:
             st.info("⚠️ Calculez d'abord le diagramme de Campbell (onglet précédent).")
             return
-            
-        st.info(f"Vérification pour la vitesse de **{op_rpm:.0f} RPM** (Zone interdite : [{zl:.0f} – {zh:.0f}] RPM)")
-        
-        # ==========================================
-        # EXTRACTION GEOMETRIQUE EXACTE (INTERSECTION 1X)
-        # ==========================================
-        speed_rad = camp.speed_range 
-        
-        # Détection : On force la lecture de 'wd' (Fréquences AMORTIES) pour correspondre au graphe !
-        if hasattr(camp, 'wd') and camp.wd is not None: 
+
+        st.info(
+            f"Vérification pour **{op_rpm:.0f} RPM** "
+            f"(Zone interdite : [{zl:.0f} – {zh:.0f}] RPM)\n\n"
+            "💡 Si vous changez la vitesse opérationnelle, relancez le Campbell "
+            "pour mettre à jour le graphique."
+        )
+
+        # CORRECTION #3 : fallback robuste pour speed_range
+        if hasattr(camp, 'speed_range') and camp.speed_range is not None:
+            speed_rad = np.array(camp.speed_range)
+        elif hasattr(camp, 'omega') and camp.omega is not None:
+            speed_rad = np.array(camp.omega)
+        else:
+            vmax_c = _CACHE.get("free_camp_vmax", 10000)
+            npts_c = _CACHE.get("free_camp_npts", 100)
+            speed_rad = np.linspace(0, float(vmax_c) * np.pi / 30, int(npts_c))
+
+        if hasattr(camp, 'wd') and camp.wd is not None:
             freqs_matrix = camp.wd
-        elif hasattr(camp, 'wn') and camp.wn is not None: 
+        elif hasattr(camp, 'wn') and camp.wn is not None:
             freqs_matrix = camp.wn
-        else: 
-            freqs_matrix = camp.freqs
-            
-        # INITIALISATION DE LA LISTE (C'est ce qui manquait !)
+        else:
+            st.error("Données de fréquences introuvables dans l'objet Campbell.")
+            return
+
         results_api = []
-        mode_id = 1
         n_modes = freqs_matrix.shape[1]
-        
+
         for mode in range(min(6, n_modes)):
-            wn_mode = freqs_matrix[:, mode]        # Fréquences du mode (rad/s)
-            ld_mode = camp.log_dec[:, mode]        # Amortissement du mode
-            
-            diff = wn_mode - speed_rad
-            
+            wn_mode = freqs_matrix[:, mode]
+            ld_mode = camp.log_dec[:, mode]
+            diff    = wn_mode - speed_rad
+
             for i in range(len(diff) - 1):
-                if diff[i] * diff[i+1] <= 0:
-                    # Interpolation exacte
-                    vc_rad = speed_rad[i] - diff[i] * (speed_rad[i+1] - speed_rad[i]) / (diff[i+1] - diff[i])
-                    vc_rpm = vc_rad * 30 / np.pi
-                    
-                    ld_exact = ld_mode[i] + (vc_rad - speed_rad[i]) * (ld_mode[i+1] - ld_mode[i]) / (speed_rad[i+1] - speed_rad[i])
+                if diff[i] * diff[i + 1] <= 0:
+                    # Interpolation linéaire exacte de l'intersection 1X
+                    denom  = diff[i + 1] - diff[i]
+                    if abs(denom) < 1e-12:
+                        continue  # Évite division par zéro
+                    vc_rad   = speed_rad[i] - diff[i] * (speed_rad[i+1] - speed_rad[i]) / denom
+                    vc_rpm   = vc_rad * 30 / np.pi
+                    ld_exact = float(np.interp(vc_rad, speed_rad, ld_mode))
                     fn_exact = vc_rad / (2 * np.pi)
-                    
+
                     in_zone = zl <= vc_rpm <= zh
-                    ok = not in_zone and ld_exact >= 0.1
-                    
+                    ok      = not in_zone and ld_exact >= 0.1
+
                     results_api.append({
-                        "Mode": mode_id,
-                        "fn (Hz)": f"{fn_exact:.2f}",
-                        "Vitesse critique (RPM)": f"{vc_rpm:.0f}",
-                        "Log Dec exact": f"{ld_exact:.4f}",
-                        "Zone interdite": "❌ OUI" if in_zone else "✅ NON",
-                        "Log Dec ≥ 0.1": "✅" if ld_exact >= 0.1 else "❌",
-                        "Conforme API 684": "✅" if ok else "❌"
+                        "Mode":                    mode + 1,
+                        "fn (Hz)":                 f"{fn_exact:.2f}",
+                        "Vitesse critique (RPM)":  f"{vc_rpm:.0f}",
+                        "Log Dec exact":           f"{ld_exact:.4f}",
+                        "Zone interdite":          "❌ OUI" if in_zone else "✅ NON",
+                        "Log Dec ≥ 0.1":           "✅" if ld_exact >= 0.1 else "❌",
+                        "Conforme API 684":        "✅" if ok else "❌",
                     })
-                    mode_id += 1
 
         if not results_api:
-            st.success("✅ Aucune vitesse critique (intersection 1X) n'a été détectée dans la plage calculée.")
-            # return
+            st.success("✅ Aucune vitesse critique (intersection 1X) dans la plage calculée.")
+            st.info(f"Essayez d'augmenter la vitesse max (actuellement "
+                    f"{_CACHE.get('free_camp_vmax', '?')} RPM).")
+            return
 
-        # --- AFFICHAGE ET SCORE ---
-        df_api = pd.DataFrame(results_api)
-        st.dataframe(df_api, use_container_width=True, hide_index=True)
-        
-        st.markdown(f"**Zone interdite API 684 :** [{zl:.0f} – {zh:.0f}] RPM")
-        n_ok = sum(1 for r in results_api if r["Conforme API 684"] == "✅")
-        score = n_ok / max(len(results_api), 1) * 100
-        color = "#22863A" if score >= 100 else "#C55A11" if score >= 67 else "#C00000"
-        
-        st.markdown(f"<h3 style='color:{color}'>Score conformité API 684 : {score:.0f}%</h3>", unsafe_allow_html=True)
-        
-        st.session_state["df_api"] = df_api
-        st.session_state["api_params"] = {"op_rpm": op_rpm, "zl": zl, "zh": zh, "score": score}
-        return
-
-        # --- AFFICHAGE DU TABLEAU ---
+        # Affichage et score
         df_api = pd.DataFrame(results_api)
         st.dataframe(df_api, use_container_width=True, hide_index=True)
         st.markdown(f"**Zone interdite API 684 :** [{zl:.0f} – {zh:.0f}] RPM")
-        
-        # --- CALCUL DU SCORE ---
-        n_ok = sum(1 for r in results_api if r["Conforme API 684"] == "✅")
+
+        n_ok  = sum(1 for r in results_api if r["Conforme API 684"] == "✅")
         score = n_ok / max(len(results_api), 1) * 100
         color = "#22863A" if score >= 100 else "#C55A11" if score >= 67 else "#C00000"
-        
-        st.markdown(f"<h3 style='color:{color}'>Score conformité API 684 : {score:.0f}%</h3>", unsafe_allow_html=True)
-        
-        # --- SAUVEGARDE EN MÉMOIRE POUR LE RAPPORT ---
-        st.session_state["df_api"] = df_api
-        st.session_state["api_params"] = {
-            "op_rpm": op_rpm,
-            "zl": zl,
-            "zh": zh,
-            "score": score
-        }
-        rep = ReportGenerator(st.session_state.get("user_name",""))
-        html = rep.html_report("Rapport API 684",
+        st.markdown(f"<h3 style='color:{color}'>Score conformité API 684 : {score:.0f}%</h3>",
+                     unsafe_allow_html=True)
+
+        # Sauvegarde pour rapport (CORRECTION #1 : tout dans _CACHE, export actif)
+        _CACHE["df_api"]     = df_api
+        _CACHE["api_params"] = {"op_rpm": op_rpm, "zl": zl, "zh": zh, "score": score}
+
+        # CORRECTION #1 : bouton export désormais atteignable
+        rep  = ReportGenerator(st.session_state.get("user_name", ""))
+        html = rep.html_report(
+            "Rapport API 684",
             {"Vitesse opérationnelle (RPM)": f"{op_rpm:.0f}",
-             "Zone interdite": f"[{zl:.0f} – {zh:.0f}] RPM",
-             "Score conformité": f"{score:.0f}%"},
-            [{"title": "Résultats API 684", "table": df_api}])
-        st.download_button("📄 Export Rapport API 684 (HTML)", data=html.encode(),
-                            file_name="rapport_api684.html", mime="text/html")
-
+             "Zone interdite":               f"[{zl:.0f} – {zh:.0f}] RPM",
+             "Score conformité":             f"{score:.0f}%"},
+            [{"title": "Résultats API 684", "table": df_api}]
+        )
+        st.download_button(
+            "📄 Export Rapport API 684 (HTML)",
+            data=html.encode(),
+            file_name="rapport_api684.html",
+            mime="text/html"
+        )
 # ── M4 — Balourd & Réponse Fréquentielle ─────────────────────────────────────
 def _render_m4():
     st.subheader("🌀 M4 — Réponse au Balourd & Réponse Fréquentielle H(jω)")
