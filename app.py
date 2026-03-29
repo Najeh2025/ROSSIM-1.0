@@ -2188,25 +2188,31 @@ def _render_m3():
             st.warning(f"Log Dec non disponible : {e}")
 
         # ==========================================
-        # 🎛️ INFLUENCE DE LA RAIDEUR CROISÉE Kxy
+        # 🎛️ INFLUENCE DE LA RAIDEUR (Kxy) ET DE L'AMORTISSEMENT CROISÉS (Cxy)
         # ==========================================
         st.markdown("---")
-        st.markdown("**🎛️ Influence de la raideur croisée Kxy (Instabilité aérodynamique / Joints) sur le rotor actuel**")
+        st.markdown("**🎛️ Simulation des instabilités fluides et aérodynamiques sur le rotor actuel**")
         
-        kxy_val = st.slider("Raideur croisée Kxy (N/m)", 0, int(1e7), 0, step=int(5e5), key="m3_kxy")
-        
-        if st.button("Recalculer avec ce Kxy", key="m3_kxy_btn"):
+        # Deux colonnes pour une interface propre
+        col_k, col_c = st.columns(2)
+        with col_k:
+            kxy_val = st.slider("Raideur croisée Kxy (N/m)", 0, int(1e7), 0, step=int(5e5), key="m3_kxy")
+            st.caption("Moteur d'instabilité (Kxy = -Kyx)")
+        with col_c:
+            cxy_val = st.slider("Amortissement croisé Cxy (N.s/m)", 0, int(1e5), 0, step=int(5000), key="m3_cxy")
+            st.caption("Couplage fluide (Cxy = Cyx)")
+            
+        if st.button("Recalculer la stabilité", type="primary", key="m3_kxy_btn"):
             current_rotor = _CACHE.get("free_rotor")
             
             if current_rotor:
                 with st.spinner("Reconstruction du rotor et calcul de la stabilité..."):
                     try:
                         import ross as rs
-                        # 1. On récupère la géométrie exacte du rotor actuel
                         shafts = current_rotor.shaft_elements
                         disks = current_rotor.disk_elements
                         
-                        # 2. On recrée les paliers en y injectant le Kxy déstabilisateur
+                        # 1. On recrée les paliers en y injectant Kxy et Cxy
                         new_bearings = []
                         for brg in current_rotor.bearing_elements:
                             if isinstance(brg, rs.BearingElement):
@@ -2216,72 +2222,73 @@ def _render_m3():
                                 cxx_v = brg.cxx[0] if hasattr(brg.cxx, '__iter__') else getattr(brg, 'cxx', 0)
                                 cyy_v = brg.cyy[0] if hasattr(brg.cyy, '__iter__') else getattr(brg, 'cyy', 0)
                                 
-                                # Création du nouveau palier avec Kxy et Kyx = -Kxy (matrice antisymétrique)
+                                # Création du nouveau palier avec les termes croisés
                                 new_brg = rs.BearingElement(
                                     n=brg.n,
                                     kxx=kxx_v, kyy=kyy_v,
-                                    kxy=kxy_val, kyx=-kxy_val,  # <-- Le moteur de l'instabilité est ici !
-                                    cxx=cxx_v, cyy=cyy_v
+                                    kxy=kxy_val, kyx=-kxy_val,  # Raideur croisée
+                                    cxx=cxx_v, cyy=cyy_v,
+                                    cxy=cxy_val, cyx=cxy_val    # Amortissement croisé
                                 )
                                 new_bearings.append(new_brg)
                             else:
-                                # Si c'est une masse ponctuelle, on la garde telle quelle
                                 new_bearings.append(brg)
                                 
-                        # 3. Assemblage du "Rotor Kxy" et calcul
-                        rotor_kxy = rs.Rotor(shaft_elements=shafts, disk_elements=disks, bearing_elements=new_bearings)
-                        eng_kxy = SimulationEngine(rotor_kxy)
-                        camp_kxy = eng_kxy.run_campbell(vmax, 50) # Résolution plus faible pour aller vite
+                        # 2. Assemblage du "Rotor Perturbé" et calcul
+                        rotor_pert = rs.Rotor(shaft_elements=shafts, disk_elements=disks, bearing_elements=new_bearings)
+                        eng_pert = SimulationEngine(rotor_pert)
                         
-                        if camp_kxy:
-                            fig_kxy = go.Figure()
-                            spd_rpm_kxy = camp_kxy.speed_range * 30 / np.pi
+                        # Résolution plus faible (50 pts) pour que le slider reste fluide et rapide
+                        camp_pert = eng_pert.run_campbell(vmax, 50) 
+                        
+                        if camp_pert:
+                            fig_pert = go.Figure()
+                            spd_rpm_pert = camp_pert.speed_range * 30 / np.pi
                             
                             # Détection de la version de ROSS pour les fréquences
-                            if hasattr(camp_kxy, 'wd') and camp_kxy.wd is not None: freqs_kxy = camp_kxy.wd
-                            elif hasattr(camp_kxy, 'wn') and camp_kxy.wn is not None: freqs_kxy = camp_kxy.wn
-                            else: freqs_kxy = camp_kxy.freqs
+                            if hasattr(camp_pert, 'wd') and camp_pert.wd is not None: freqs_pert = camp_pert.wd
+                            elif hasattr(camp_pert, 'wn') and camp_pert.wn is not None: freqs_pert = camp_pert.wn
+                            else: freqs_pert = camp_pert.freqs
                             
-                            whirl_kxy = getattr(camp_kxy, 'whirl', None)
+                            whirl_pert = getattr(camp_pert, 'whirl', None)
                             colors = ["#1F5C8B","#22863A","#C55A11","#7B1FA2","#117A8B","#C00000"]
                             
-                            for i in range(min(6, camp_kxy.log_dec.shape[1])):
+                            for i in range(min(6, camp_pert.log_dec.shape[1])):
                                 # Détection FW/BW
-                                if whirl_kxy is not None:
-                                    mid_idx = len(spd_rpm_kxy) // 2
-                                    w_val = str(whirl_kxy[mid_idx, i]).lower()
+                                if whirl_pert is not None:
+                                    mid_idx = len(spd_rpm_pert) // 2
+                                    w_val = str(whirl_pert[mid_idx, i]).lower()
                                     w_label = "FW" if "forward" in w_val else ("BW" if "backward" in w_val else "Mixte")
                                 else:
-                                    slope = freqs_kxy[-1, i] - freqs_kxy[0, i]
+                                    slope = freqs_pert[-1, i] - freqs_pert[0, i]
                                     w_label = "FW" if slope > 0 else "BW"
                                     
-                                fig_kxy.add_trace(go.Scatter(
-                                    x=spd_rpm_kxy, 
-                                    y=camp_kxy.log_dec[:, i], 
+                                fig_pert.add_trace(go.Scatter(
+                                    x=spd_rpm_pert, 
+                                    y=camp_pert.log_dec[:, i], 
                                     name=f"Mode {i+1} ({w_label})",
                                     line=dict(color=colors[i % len(colors)])
                                 ))
                                 
-                            fig_kxy.add_hline(y=0, line_dash="dash", line_color="red")
-                            fig_kxy.update_layout(
-                                title=f"Stabilité de votre rotor avec Kxy = {kxy_val:.0e} N/m",
+                            fig_pert.add_hline(y=0, line_dash="dash", line_color="red")
+                            fig_pert.update_layout(
+                                title=f"Stabilité avec Kxy = {kxy_val:.0e} N/m et Cxy = {cxy_val:.0e} N.s/m",
                                 xaxis_title="Vitesse (RPM)", yaxis_title="Log Dec", height=400
                             )
-                            st.plotly_chart(fig_kxy, use_container_width=True)
+                            st.plotly_chart(fig_pert, use_container_width=True)
                             
-                            # Messages d'alerte basés sur le Log Dec minimum calculé
-                            min_log_dec = np.min(camp_kxy.log_dec[:, :4]) # On check les 4 premiers modes
+                            # 3. Diagnostic dynamique de la stabilité
+                            min_log_dec = np.min(camp_pert.log_dec[:, :4]) # On check les 4 premiers modes
                             
                             if min_log_dec < 0:
-                                st.markdown("<div class='card-red'>❌ Instabilité majeure détectée (Log Dec < 0) ! Le rotor va entrer en fouettement (whip).</div>", unsafe_allow_html=True)
+                                st.markdown("<div class='card-red'>❌ <b>Instabilité majeure détectée !</b> Le rotor est instable (Log Dec < 0).</div>", unsafe_allow_html=True)
                             elif min_log_dec < 0.1:
-                                st.markdown("<div class='card-orange'>⚠️ Stabilité marginale (Log Dec < 0.1). Non conforme API 684.</div>", unsafe_allow_html=True)
+                                st.markdown("<div class='card-orange'>⚠️ <b>Stabilité marginale.</b> Le rotor est stable mais ne respecte pas la marge de sécurité (Log Dec < 0.1).</div>", unsafe_allow_html=True)
                             else:
-                                st.markdown("<div class='card-green'>✅ Rotor stable face à cette perturbation aérodynamique.</div>", unsafe_allow_html=True)
+                                st.markdown("<div class='card-green'>✅ <b>Rotor stable.</b> L'amortissement direct est suffisant pour contrer la perturbation.</div>", unsafe_allow_html=True)
                                 
                     except Exception as e:
                         st.error(f"Erreur lors du recalcul : {e}")
-
     # ── ONGLET 3 : API 684 ────────────────────────────────────────────────────
     with tab_api:
         camp = _CACHE.get("free_camp")
