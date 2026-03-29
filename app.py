@@ -1382,7 +1382,8 @@ def _run_tutorial_step(tut_id, step_idx, step, tut):
 
         elif step_idx == 2:  # Campbell
             vmax = st.slider("Vitesse max (RPM)", 2000, 20000, 10000, key=f"vm_{sid}")
-            npts = st.slider("Résolution (points)", 30, 150, 100, key=f"np_{sid}")
+            #npts = st.slider("Résolution (points)", 30, 150, 100, key=f"np_{sid}")
+            npts = st.slider("Résolution (points)", 10, 100, 20, key=f"np_{sid}")
             if st.button("📈 Tracer le Campbell", key=f"btn_{sid}", type="primary"):
                 with st.spinner("Calcul Campbell (peut prendre quelques secondes)..."):
                     camp = eng.run_campbell(vmax, npts)
@@ -2007,7 +2008,8 @@ def _render_m3():
         with col1:
             vmax = st.slider("Vitesse max (RPM)", 2000, 30000, 10000, key="m3_vmax")
         with col2:
-            npts = st.slider("Résolution (points)", 50, 200, 100, key="m3_npts")
+            #npts = st.slider("Résolution (points)", 50, 200, 100, key="m3_npts")
+            npts = st.slider("Résolution (points)", 10, 100, 20, key=f"np_{sid}")
         if st.button("📈 Tracer le Campbell", type="primary", key="m3_camp"):
             with st.spinner(f"Calcul Campbell ({npts} points)..."):
                 camp = eng.run_campbell(vmax, npts)
