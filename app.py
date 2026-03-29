@@ -2130,7 +2130,7 @@ def _render_m3():
         # ==========================================
         # NOUVELLE MÉTHODE D'EXTRACTION API 684
         # ==========================================
-        modal_base = rotor.run_modal(speed=100 * np.pi / 30) 
+modal_base = rotor.run_modal(speed=100 * np.pi / 30) 
         
         results_api = []
         modes_to_check = min(6, len(modal_base.wn))
@@ -2157,16 +2157,23 @@ def _render_m3():
                 "fn (Hz)": f"{fn_exact:.2f}",
                 "Vitesse critique (RPM)": f"{wn_cpm_exact:.0f}",
                 "Zone interdite": "❌ OUI" if in_zone else "✅ NON",
-                "Log Dec": f"{log_dec_exact:.4f}",
                 "Log Dec ≥ 0.1": "✅" if log_dec_exact >= 0.1 else "❌",
                 "Conforme API 684": "✅" if ok else "❌"
             })
             
-        # (La suite de votre code reste identique à partir d'ici)
+        # --- AFFICHAGE DU TABLEAU ---
         st.dataframe(pd.DataFrame(results_api), use_container_width=True, hide_index=True)
-        # Export
+        st.markdown(f"**Zone interdite API 684 :** [{zl:.0f} – {zh:.0f}] RPM")
+        
+        # --- CALCUL DU SCORE (C'est ce qui manquait !) ---
+        n_ok = sum(1 for r in results_api if r["Conforme API 684"] == "✅")
+        score = n_ok / max(len(results_api), 1) * 100
+        color = "#22863A" if score >= 100 else "#C55A11" if score >= 67 else "#C00000"
+        
+        st.markdown(f"<h3 style='color:{color}'>Score conformité API 684 : {score:.0f}%</h3>", unsafe_allow_html=True)
+        
+        # --- EXPORT ET SAUVEGARDE EN MÉMOIRE ---
         df_api = pd.DataFrame(results_api)
-        # Sauvegarde en mémoire pour le module M6 (Rapport PDF)
         st.session_state["df_api"] = df_api
         st.session_state["api_params"] = {
             "op_rpm": op_rpm,
