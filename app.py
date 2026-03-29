@@ -2081,32 +2081,53 @@ def _render_m3():
     # ── ONGLET 2 : STABILITÉ ──────────────────────────────────────────────────
     with tab_stab:
         camp = _CACHE.get("free_camp")
-        vmax = _CACHE.get("free_camp_vmax", 10000)
-        npts = _CACHE.get("free_camp_npts", 100)
         if camp is None:
-            st.info("Calculez d'abord le Campbell (onglet précédent)"); return
-
+            st.info("Calculez d'abord le Campbell (onglet précédent)")
+            return
+            
         st.info("Log Dec < 0 → Instabilité | Log Dec ≥ 0.1 → Conforme API 684")
         fig_s = go.Figure()
+        
         try:
-            ld  = camp.log_dec
-            spd = np.linspace(0, vmax, npts)
-            colors = ["#1F5C8B","#22863A","#C55A11","#7B1FA2","#117A8B","#C00000"]
-            for i in range(min(6, ld.shape[1])):
+            ld = camp.log_dec
+            # On utilise l'axe exact du calcul ROSS converti en RPM
+            spd_rpm = camp.speed_range * 30 / np.pi 
+            
+            # Récupération des données pour identifier FW/BW
+            whirl = getattr(camp, 'whirl', None)
+            if hasattr(camp, 'wd') and camp.wd is not None: freqs_matrix = camp.wd
+            elif hasattr(camp, 'wn') and camp.wn is not None: freqs_matrix = camp.wn
+            else: freqs_matrix = camp.freqs
+            
+            colors = ["#1F5C8B","#22863A","#C55A11","#7B1FA2","#117A8B","#C00000", "#E67E22", "#2980B9", "#27AE60", "#8E44AD"]
+            
+            # On trace jusqu'à 10 courbes (puisque FW et BW doublent le nombre de modes physiques)
+            for i in range(min(10, ld.shape[1])):
+                # Détermination du label FW/BW pour la légende
+                if whirl is not None:
+                    # On regarde la précession au milieu de la courbe pour être sûr
+                    mid_idx = len(spd_rpm) // 2
+                    w_val = str(whirl[mid_idx, i]).lower()
+                    whirl_label = "FW" if "forward" in w_val else ("BW" if "backward" in w_val else "Mixte")
+                else:
+                    slope = freqs_matrix[-1, i] - freqs_matrix[0, i]
+                    whirl_label = "FW" if slope > 0 else "BW"
+                    
                 fig_s.add_trace(go.Scatter(
-                    x=spd, y=ld[:, i],
-                    name=f"Mode {i+1}",
+                    x=spd_rpm, y=ld[:, i],
+                    name=f"Mode {i+1} ({whirl_label})",
                     line=dict(color=colors[i % len(colors)])
                 ))
-            fig_s.add_hline(y=0,   line_dash="dash", line_color="red",
-                             annotation_text="Seuil instabilité (0)")
-            fig_s.add_hline(y=0.1, line_dash="dot",  line_color="orange",
-                             annotation_text="Seuil API 684 (0.1)")
+                
+            fig_s.add_hline(y=0, line_dash="dash", line_color="red", annotation_text="Seuil instabilité (0)")
+            fig_s.add_hline(y=0.1, line_dash="dot", line_color="orange", annotation_text="Seuil API 684 (0.1)")
+            
             fig_s.update_layout(
                 xaxis_title="Vitesse (RPM)", yaxis_title="Log Décrément",
                 title="Stabilité des modes vs vitesse", height=450
             )
             st.plotly_chart(fig_s, use_container_width=True)
+            
         except Exception as e:
             st.warning(f"Log Dec non disponible : {e}")
 
