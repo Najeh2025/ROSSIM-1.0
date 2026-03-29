@@ -1797,7 +1797,7 @@ def _render_m1():
                         shaft.append(rs.ShaftElement(L=L, idl=idl, odl=odl, idr=idr, odr=odr, material=mat))
 
                     # --- 2. Création des Disques ---
-                    disk_elements = []
+                    disks = []
                     # C'est cette ligne exacte qui définit "row" !
                     for index, row in st.session_state.df_disk.iterrows():
                         disk = rs.DiskElement(
@@ -1806,7 +1806,7 @@ def _render_m1():
                                 Id=float(row["Id (kg.m²)"]),
                                 Ip=float(row["Ip (kg.m²)"])
                             )
-                        disk_elements.append(disk)
+                        disks.append(disk)
                     #disks = [rs.DiskElement.from_geometry(n=int(r["nœud"]), material=mat,
                     #         width=float(r["largeur (m)"]), i_d=float(r["id (m)"]), o_d=float(r["od (m)"]))
                     #         for r in st.session_state.df_disk.to_dict('records')]
