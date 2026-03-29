@@ -2008,6 +2008,7 @@ def _render_m3():
     )
 
     # ── ONGLET 1 : CAMPBELL ───────────────────────────────────────────────────
+# ── ONGLET 1 : CAMPBELL ───────────────────────────────────────────────────
     with tab_camp:
         col1, col2 = st.columns(2)
         with col1:
@@ -2057,25 +2058,79 @@ def _render_m3():
                 except Exception:
                     _plot_campbell_fallback(camp, vmax, npts)
 
-                # CORRECTION #2 : stocker modal_0 dans _CACHE, pas session_state
+                # CORRECTION #2 : stocker modal_0 dans _CACHE, pas session_state (Pour que API s'en serve en backup)
                 modal_0 = eng.run_modal(0)
                 if modal_0:
                     _CACHE["free_modal"] = modal_0
-                    fn = modal_0.wn / (2 * np.pi)
-                    df_vc = pd.DataFrame({
-                        "Mode":                  range(1, len(fn[:6]) + 1),
-                        "fn (Hz)":               [f"{v:.2f}" for v in fn[:6]],
-                        "Vitesse critique (RPM)": [f"{v * 60:.0f}" for v in fn[:6]],
-                    })
-                    _CACHE["df_campbell"] = df_vc
-                    st.markdown("**⚡ Vitesses critiques (intersections 1X) :**")
+                
+                # ==========================================
+                # CALCUL DES INTERSECTIONS 1X (FW / BW) 
+                # ==========================================
+                speed_rad = camp.speed_range
+                
+                if hasattr(camp, 'wd') and camp.wd is not None: 
+                    freqs_matrix = camp.wd
+                elif hasattr(camp, 'wn') and camp.wn is not None: 
+                    freqs_matrix = camp.wn
+                else: 
+                    freqs_matrix = camp.freqs
+                
+                whirl = getattr(camp, 'whirl', None)
+                crit_speeds = []
+                n_modes = freqs_matrix.shape[1]
+                
+                for mode in range(min(10, n_modes)):
+                    wn_mode = freqs_matrix[:, mode]
+                    diff = wn_mode - speed_rad
+                    
+                    for i in range(len(diff) - 1):
+                        if diff[i] * diff[i+1] <= 0:
+                            denom = diff[i+1] - diff[i]
+                            if abs(denom) < 1e-12:
+                                continue
+                                
+                            vc_rad = speed_rad[i] - diff[i] * (speed_rad[i+1] - speed_rad[i]) / denom
+                            vc_rpm = vc_rad * 30 / np.pi
+                            fn_exact = vc_rad / (2 * np.pi)
+                            
+                            if whirl is not None:
+                                w_val = str(whirl[i, mode]).lower()
+                                whirl_label = "FW" if "forward" in w_val else ("BW" if "backward" in w_val else "Mixte")
+                            else:
+                                slope = (wn_mode[i+1] - wn_mode[i]) / (speed_rad[i+1] - speed_rad[i])
+                                whirl_label = "FW" if slope > 0 else "BW"
+                                
+                            crit_speeds.append({
+                                "Mode_physique": mode + 1,
+                                "Précession": whirl_label,
+                                "fn (Hz)": f"{fn_exact:.2f}",
+                                "Vitesse critique (RPM)": f"{vc_rpm:.0f}"
+                            })
+                
+                df_vc = pd.DataFrame(crit_speeds)
+                
+                if not df_vc.empty:
+                    # Tri et réaffectation propre
+                    df_vc["Vitesse_num"] = pd.to_numeric(df_vc["Vitesse critique (RPM)"])
+                    df_vc = df_vc.sort_values("Vitesse_num").drop(columns=["Vitesse_num"]).reset_index(drop=True)
+                    df_vc["Mode"] = range(1, len(df_vc) + 1)
+                    df_vc = df_vc[["Mode", "Précession", "fn (Hz)", "Vitesse critique (RPM)"]]
+                
+                _CACHE["df_campbell"] = df_vc
+                
+                st.markdown("**⚡ Vitesses critiques exactes (intersections 1X) :**")
+                if not df_vc.empty:
                     st.dataframe(df_vc, use_container_width=True, hide_index=True)
+                else:
+                    st.info("Aucune intersection 1X trouvée dans cette plage de vitesse.")
+                    
             else:
                 st.error(f"Erreur : {eng.last_error}")
 
         # Rappel visuel si déjà calculé
         elif _CACHE.get("free_camp") and _CACHE.get("df_campbell") is not None:
-            st.info("Campbell déjà calculé — appuyez à nouveau pour recalculer.")
+            st.info("Campbell déjà calculé — modifiez les paramètres et appuyez à nouveau pour recalculer.")
+            st.markdown("**⚡ Vitesses critiques exactes (intersections 1X) :**")
             st.dataframe(_CACHE["df_campbell"], use_container_width=True, hide_index=True)
 
     # ── ONGLET 2 : STABILITÉ ──────────────────────────────────────────────────
