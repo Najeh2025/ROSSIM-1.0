@@ -1802,6 +1802,7 @@ def _render_m1():
                             Id=float(row["Id (kg.m²)"]),
                             Ip=float(row["Ip (kg.m²)"])
                         )
+                    disk_elements.append(disk)
                     #disks = [rs.DiskElement.from_geometry(n=int(r["nœud"]), material=mat,
                     #         width=float(r["largeur (m)"]), i_d=float(r["id (m)"]), o_d=float(r["od (m)"]))
                     #         for r in st.session_state.df_disk.to_dict('records')]
