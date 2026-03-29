@@ -2124,47 +2124,46 @@ def _render_m3():
         ld = getattr(modal_0, 'log_dec', np.zeros(len(fn)))
         
         # On utilise les variables op_rpm, zl et zh définies en haut du module
-        # 1. On estime les vitesses critiques avec une vitesse faible pour éviter 
-                # de fausser l'ordre des modes avec l'effet gyroscopique.
+        # On utilise les variables op_rpm, zl et zh définies en haut du module
+        st.info(f"Vérification pour la vitesse de **{op_rpm:.0f} RPM** (Zone interdite : [{zl:.0f} – {zh:.0f}] RPM)")
+        
+        # ==========================================
+        # NOUVELLE MÉTHODE D'EXTRACTION API 684
+        # ==========================================
         modal_base = rotor.run_modal(speed=100 * np.pi / 30) 
-                
-        api_data = []
-        modes_to_check = min(4, len(modal_base.wn))
-                
-       for i in range(modes_to_check):
-           # Fréquence propre estimée (en rad/s)
-           wc_estime = modal_base.wn[i]
-                    
-           # 2. LE SECRET : Recalcul complet EXACTEMENT à la vitesse critique (N = Wn)
-           try:
-              modal_crit = rotor.run_modal(speed=wc_estime)
-              log_dec_exact = modal_crit.log_dec[i]
-              wn_cpm_exact = modal_crit.wn[i] * 30 / np.pi
-           except:
-                # Sécurité si le solveur échoue
+        
+        results_api = []
+        modes_to_check = min(6, len(modal_base.wn))
+        
+        for i in range(modes_to_check):
+            wc_estime = modal_base.wn[i]
+            
+            # Recalcul complet EXACTEMENT à la vitesse critique
+            try:
+                modal_crit = rotor.run_modal(speed=wc_estime)
+                log_dec_exact = modal_crit.log_dec[i]
+                wn_cpm_exact = modal_crit.wn[i] * 30 / np.pi
+                fn_exact = modal_crit.wn[i] / (2 * np.pi)
+            except:
                 log_dec_exact = 0.0
                 wn_cpm_exact = wc_estime * 30 / np.pi
-                        
-                # 3. Évaluation selon API 684
-                if wn_cpm_exact < vmax_api:
-                   req_af = 2.5 # AF max autorisé si on traverse cette fréquence
-                else:
-                   req_af = 0.0 # Pas de traversée, pas de contrainte AF
-                        
-                # Calcul de l'AF (Facteur d'Amplification)
-                af = np.pi / log_dec_exact if log_dec_exact > 0.0001 else float('inf')
-                    
-                # Le mode est stable et conforme si Log Dec > 0.1
-                status = "✅" if (log_dec_exact >= 0.1) else "❌"
-                    
-                api_data.append({
-                        "Mode": f"Mode {i+1}",
-                        "Vitesse Critique (CPM)": round(wn_cpm_exact, 1),
-                        "Log Dec": round(log_dec_exact, 4),
-                        "AF Calculé": round(af, 2) if af != float('inf') else "> 1000",
-                        "AF Requis": req_af,
-                        "Conforme API": status
-                    })
+                fn_exact = wc_estime / (2 * np.pi)
+                
+            in_zone = zl <= wn_cpm_exact <= zh
+            ok = not in_zone and log_dec_exact >= 0.1
+            
+            results_api.append({
+                "Mode": i + 1,
+                "fn (Hz)": f"{fn_exact:.2f}",
+                "Vitesse critique (RPM)": f"{wn_cpm_exact:.0f}",
+                "Zone interdite": "❌ OUI" if in_zone else "✅ NON",
+                "Log Dec": f"{log_dec_exact:.4f}",
+                "Log Dec ≥ 0.1": "✅" if log_dec_exact >= 0.1 else "❌",
+                "Conforme API 684": "✅" if ok else "❌"
+            })
+            
+        # (La suite de votre code reste identique à partir d'ici)
+        st.dataframe(pd.DataFrame(results_api), use_container_width=True, hide_index=True)
         # Export
         df_api = pd.DataFrame(results_api)
         # Sauvegarde en mémoire pour le module M6 (Rapport PDF)
