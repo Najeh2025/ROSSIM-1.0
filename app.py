@@ -2124,27 +2124,47 @@ def _render_m3():
         ld = getattr(modal_0, 'log_dec', np.zeros(len(fn)))
         
         # On utilise les variables op_rpm, zl et zh définies en haut du module
-        st.info(f"Vérification pour la vitesse de **{op_rpm:.0f} RPM** (Zone interdite : [{zl:.0f} – {zh:.0f}] RPM)")
-        
-        results_api = []
-        for i, (vc, log_d) in enumerate(zip(vc_rpm[:6], ld[:6])):
-            in_zone = zl <= vc <= zh
-            ok = not in_zone and log_d >= 0.1
-            results_api.append({
-                "Mode": i+1,
-                "fn (Hz)": f"{fn[i]:.2f}",
-                "Vitesse critique (RPM)": f"{vc:.0f}",
-                "Zone interdite": "❌ OUI" if in_zone else "✅ NON",
-                "Log Dec ≥ 0.1": "✅" if log_d >= 0.1 else "❌",
-                "Conforme API 684": "✅" if ok else "❌",
-            })
-        st.dataframe(pd.DataFrame(results_api), use_container_width=True, hide_index=True)
-        st.markdown(f"**Zone interdite API 684 :** [{zl:.0f} – {zh:.0f}] RPM")
-        n_ok = sum(1 for r in results_api if r["Conforme API 684"] == "✅")
-        score = n_ok / max(len(results_api), 1) * 100
-        color = "#22863A" if score >= 100 else "#C55A11" if score >= 67 else "#C00000"
-        st.markdown(f"<h3 style='color:{color}'>Score conformité API 684 : {score:.0f}%</h3>",
-                     unsafe_allow_html=True)
+        # 1. On estime les vitesses critiques avec une vitesse faible pour éviter 
+                # de fausser l'ordre des modes avec l'effet gyroscopique.
+                modal_base = rotor.run_modal(speed=100 * np.pi / 30) 
+                
+                api_data = []
+                modes_to_check = min(4, len(modal_base.wn))
+                
+                for i in range(modes_to_check):
+                    # Fréquence propre estimée (en rad/s)
+                    wc_estime = modal_base.wn[i]
+                    
+                    # 2. LE SECRET : Recalcul complet EXACTEMENT à la vitesse critique (N = Wn)
+                    try:
+                        modal_crit = rotor.run_modal(speed=wc_estime)
+                        log_dec_exact = modal_crit.log_dec[i]
+                        wn_cpm_exact = modal_crit.wn[i] * 30 / np.pi
+                    except:
+                        # Sécurité si le solveur échoue
+                        log_dec_exact = 0.0
+                        wn_cpm_exact = wc_estime * 30 / np.pi
+                        
+                    # 3. Évaluation selon API 684
+                    if wn_cpm_exact < vmax_api:
+                        req_af = 2.5 # AF max autorisé si on traverse cette fréquence
+                    else:
+                        req_af = 0.0 # Pas de traversée, pas de contrainte AF
+                        
+                    # Calcul de l'AF (Facteur d'Amplification)
+                    af = np.pi / log_dec_exact if log_dec_exact > 0.0001 else float('inf')
+                    
+                    # Le mode est stable et conforme si Log Dec > 0.1
+                    status = "✅" if (log_dec_exact >= 0.1) else "❌"
+                    
+                    api_data.append({
+                        "Mode": f"Mode {i+1}",
+                        "Vitesse Critique (CPM)": round(wn_cpm_exact, 1),
+                        "Log Dec": round(log_dec_exact, 4),
+                        "AF Calculé": round(af, 2) if af != float('inf') else "> 1000",
+                        "AF Requis": req_af,
+                        "Conforme API": status
+                    })
         # Export
         df_api = pd.DataFrame(results_api)
         # Sauvegarde en mémoire pour le module M6 (Rapport PDF)
@@ -2163,7 +2183,6 @@ def _render_m3():
             [{"title": "Résultats API 684", "table": df_api}])
         st.download_button("📄 Export Rapport API 684 (HTML)", data=html.encode(),
                             file_name="rapport_api684.html", mime="text/html")
-
 
 # ── M4 — Balourd & Réponse Fréquentielle ─────────────────────────────────────
 def _render_m4():
