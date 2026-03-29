@@ -2169,7 +2169,7 @@ def _render_m3():
 
         if not results_api:
             st.success("✅ Aucune vitesse critique (intersection 1X) n'a été détectée dans la plage calculée.")
-            return
+            # return
 
         # --- AFFICHAGE ET SCORE ---
         df_api = pd.DataFrame(results_api)
