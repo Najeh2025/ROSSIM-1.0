@@ -2117,7 +2117,7 @@ def _render_m3():
                     df_vc = df_vc[["Mode", "Précession", "fn (Hz)", "Vitesse critique (RPM)"]]
                 
                 _CACHE["df_campbell"] = df_vc
-                
+                st.markdown(f"**🛑 Zone interdite API 684 :** [{zl:.0f} – {zh:.0f}] RPM")
                 st.markdown("**⚡ Vitesses critiques exactes (intersections 1X) :**")
                 if not df_vc.empty:
                     st.dataframe(df_vc, use_container_width=True, hide_index=True)
@@ -2296,7 +2296,7 @@ def _render_m3():
         # Affichage et score
         df_api = pd.DataFrame(results_api)
         st.dataframe(df_api, use_container_width=True, hide_index=True)
-        st.markdown(f"**Zone interdite API 684 :** [{zl:.0f} – {zh:.0f}] RPM")
+        # st.markdown(f"**Zone interdite API 684 :** [{zl:.0f} – {zh:.0f}] RPM")
 
         n_ok  = sum(1 for r in results_api if r["Conforme API 684"] == "✅")
         score = n_ok / max(len(results_api), 1) * 100
