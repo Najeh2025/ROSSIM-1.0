@@ -2131,12 +2131,10 @@ def _render_m3():
         speed_rad = camp.speed_range 
         
         # 🚀 LA CORRECTION EST ICI : Détection automatique de l'attribut des fréquences
-        if hasattr(camp, 'wn'):
-            freqs_matrix = camp.wn
-        elif hasattr(camp, 'wd'):
-            freqs_matrix = camp.wd
-        else:
-            freqs_matrix = camp.freqs # Fallback de sécurité
+        # Détection : On force la lecture de 'wd' (Fréquences AMORTIES) pour correspondre au graphe !
+        if hasattr(camp, 'wd') and camp.wd is not None: freqs = camp.wd
+        elif hasattr(camp, 'wn'): freqs = camp.wn
+        else: freqs = camp.freqs
             
         n_modes = freqs_matrix.shape[1]
         
