@@ -1054,7 +1054,8 @@ def render_dashboard():
                       use_container_width=True, 
                       on_click=navigate_to_tutorial, args=(tid,))
             
-    st.markdown("<br><hr><br>", unsafe_allow_html=True) # Une belle séparation aérée
+    #st.markdown("<br><hr><br>", unsafe_allow_html=True) # Une belle séparation aérée
+    st.markdown("---")
     
     # ==========================================
     # 2. SECTION : CAS D'ÉTUDE (En dessous)
