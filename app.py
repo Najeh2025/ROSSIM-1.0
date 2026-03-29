@@ -2187,39 +2187,100 @@ def _render_m3():
         except Exception as e:
             st.warning(f"Log Dec non disponible : {e}")
 
-        # Influence Kxy
+        # ==========================================
+        # 🎛️ INFLUENCE DE LA RAIDEUR CROISÉE Kxy
+        # ==========================================
         st.markdown("---")
-        st.markdown("**🎛️ Influence de la raideur croisée Kxy sur la stabilité**")
-        kxy_val = st.slider("Kxy (N/m)", 0, int(1e7), 0, step=int(5e5), key="m3_kxy")
+        st.markdown("**🎛️ Influence de la raideur croisée Kxy (Instabilité aérodynamique / Joints) sur le rotor actuel**")
+        
+        kxy_val = st.slider("Raideur croisée Kxy (N/m)", 0, int(1e7), 0, step=int(5e5), key="m3_kxy")
+        
         if st.button("Recalculer avec ce Kxy", key="m3_kxy_btn"):
-            rotor_kxy = _build_quick_rotor(kxy=float(kxy_val))
-            if rotor_kxy:
-                camp_kxy = SimulationEngine(rotor_kxy).run_campbell(vmax, 50)
-                if camp_kxy:
-                    fig_kxy = go.Figure()
+            current_rotor = _CACHE.get("free_rotor")
+            
+            if current_rotor:
+                with st.spinner("Reconstruction du rotor et calcul de la stabilité..."):
                     try:
-                        for i in range(min(4, camp_kxy.log_dec.shape[1])):
-                            fig_kxy.add_trace(go.Scatter(
-                                x=np.linspace(0, vmax, 50),
-                                y=camp_kxy.log_dec[:, i], name=f"Mode {i+1}"
-                            ))
-                        fig_kxy.add_hline(y=0, line_dash="dash", line_color="red")
-                        fig_kxy.update_layout(
-                            title=f"Stabilité avec Kxy = {kxy_val:.0e} N/m",
-                            xaxis_title="Vitesse (RPM)", yaxis_title="Log Dec"
-                        )
-                        st.plotly_chart(fig_kxy, use_container_width=True)
-                        if kxy_val > 5e6:
-                            st.markdown("<div class='card-red'>❌ Kxy élevé — risque d'instabilité !</div>",
-                                         unsafe_allow_html=True)
-                        elif kxy_val > 2e6:
-                            st.markdown("<div class='card-orange'>⚠️ Kxy modéré — surveillez le Log Dec</div>",
-                                         unsafe_allow_html=True)
-                        else:
-                            st.markdown("<div class='card-green'>✅ Kxy faible — système stable</div>",
-                                         unsafe_allow_html=True)
-                    except Exception:
-                        st.warning("Log Dec non disponible pour cette configuration")
+                        import ross as rs
+                        # 1. On récupère la géométrie exacte du rotor actuel
+                        shafts = current_rotor.shaft_elements
+                        disks = current_rotor.disk_elements
+                        
+                        # 2. On recrée les paliers en y injectant le Kxy déstabilisateur
+                        new_bearings = []
+                        for brg in current_rotor.bearing_elements:
+                            if isinstance(brg, rs.BearingElement):
+                                # Extraction sécurisée des coefficients existants
+                                kxx_v = brg.kxx[0] if hasattr(brg.kxx, '__iter__') else getattr(brg, 'kxx', 0)
+                                kyy_v = brg.kyy[0] if hasattr(brg.kyy, '__iter__') else getattr(brg, 'kyy', 0)
+                                cxx_v = brg.cxx[0] if hasattr(brg.cxx, '__iter__') else getattr(brg, 'cxx', 0)
+                                cyy_v = brg.cyy[0] if hasattr(brg.cyy, '__iter__') else getattr(brg, 'cyy', 0)
+                                
+                                # Création du nouveau palier avec Kxy et Kyx = -Kxy (matrice antisymétrique)
+                                new_brg = rs.BearingElement(
+                                    n=brg.n,
+                                    kxx=kxx_v, kyy=kyy_v,
+                                    kxy=kxy_val, kyx=-kxy_val,  # <-- Le moteur de l'instabilité est ici !
+                                    cxx=cxx_v, cyy=cyy_v
+                                )
+                                new_bearings.append(new_brg)
+                            else:
+                                # Si c'est une masse ponctuelle, on la garde telle quelle
+                                new_bearings.append(brg)
+                                
+                        # 3. Assemblage du "Rotor Kxy" et calcul
+                        rotor_kxy = rs.Rotor(shaft_elements=shafts, disk_elements=disks, bearing_elements=new_bearings)
+                        eng_kxy = SimulationEngine(rotor_kxy)
+                        camp_kxy = eng_kxy.run_campbell(vmax, 50) # Résolution plus faible pour aller vite
+                        
+                        if camp_kxy:
+                            fig_kxy = go.Figure()
+                            spd_rpm_kxy = camp_kxy.speed_range * 30 / np.pi
+                            
+                            # Détection de la version de ROSS pour les fréquences
+                            if hasattr(camp_kxy, 'wd') and camp_kxy.wd is not None: freqs_kxy = camp_kxy.wd
+                            elif hasattr(camp_kxy, 'wn') and camp_kxy.wn is not None: freqs_kxy = camp_kxy.wn
+                            else: freqs_kxy = camp_kxy.freqs
+                            
+                            whirl_kxy = getattr(camp_kxy, 'whirl', None)
+                            colors = ["#1F5C8B","#22863A","#C55A11","#7B1FA2","#117A8B","#C00000"]
+                            
+                            for i in range(min(6, camp_kxy.log_dec.shape[1])):
+                                # Détection FW/BW
+                                if whirl_kxy is not None:
+                                    mid_idx = len(spd_rpm_kxy) // 2
+                                    w_val = str(whirl_kxy[mid_idx, i]).lower()
+                                    w_label = "FW" if "forward" in w_val else ("BW" if "backward" in w_val else "Mixte")
+                                else:
+                                    slope = freqs_kxy[-1, i] - freqs_kxy[0, i]
+                                    w_label = "FW" if slope > 0 else "BW"
+                                    
+                                fig_kxy.add_trace(go.Scatter(
+                                    x=spd_rpm_kxy, 
+                                    y=camp_kxy.log_dec[:, i], 
+                                    name=f"Mode {i+1} ({w_label})",
+                                    line=dict(color=colors[i % len(colors)])
+                                ))
+                                
+                            fig_kxy.add_hline(y=0, line_dash="dash", line_color="red")
+                            fig_kxy.update_layout(
+                                title=f"Stabilité de votre rotor avec Kxy = {kxy_val:.0e} N/m",
+                                xaxis_title="Vitesse (RPM)", yaxis_title="Log Dec", height=400
+                            )
+                            st.plotly_chart(fig_kxy, use_container_width=True)
+                            
+                            # Messages d'alerte basés sur le Log Dec minimum calculé
+                            min_log_dec = np.min(camp_kxy.log_dec[:, :4]) # On check les 4 premiers modes
+                            
+                            if min_log_dec < 0:
+                                st.markdown("<div class='card-red'>❌ Instabilité majeure détectée (Log Dec < 0) ! Le rotor va entrer en fouettement (whip).</div>", unsafe_allow_html=True)
+                            elif min_log_dec < 0.1:
+                                st.markdown("<div class='card-orange'>⚠️ Stabilité marginale (Log Dec < 0.1). Non conforme API 684.</div>", unsafe_allow_html=True)
+                            else:
+                                st.markdown("<div class='card-green'>✅ Rotor stable face à cette perturbation aérodynamique.</div>", unsafe_allow_html=True)
+                                
+                    except Exception as e:
+                        st.error(f"Erreur lors du recalcul : {e}")
 
     # ── ONGLET 3 : API 684 ────────────────────────────────────────────────────
     with tab_api:
