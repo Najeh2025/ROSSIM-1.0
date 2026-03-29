@@ -2184,7 +2184,7 @@ def _render_m3():
         
         st.session_state["df_api"] = df_api
         st.session_state["api_params"] = {"op_rpm": op_rpm, "zl": zl, "zh": zh, "score": score}
-            return
+        return
 
         # --- AFFICHAGE DU TABLEAU ---
         df_api = pd.DataFrame(results_api)
