@@ -2128,36 +2128,36 @@ def _render_m3():
                 # de fausser l'ordre des modes avec l'effet gyroscopique.
         modal_base = rotor.run_modal(speed=100 * np.pi / 30) 
                 
-                api_data = []
-                modes_to_check = min(4, len(modal_base.wn))
+        api_data = []
+        modes_to_check = min(4, len(modal_base.wn))
                 
-                for i in range(modes_to_check):
-                    # Fréquence propre estimée (en rad/s)
-                    wc_estime = modal_base.wn[i]
+       for i in range(modes_to_check):
+           # Fréquence propre estimée (en rad/s)
+           wc_estime = modal_base.wn[i]
                     
-                    # 2. LE SECRET : Recalcul complet EXACTEMENT à la vitesse critique (N = Wn)
-                    try:
-                        modal_crit = rotor.run_modal(speed=wc_estime)
-                        log_dec_exact = modal_crit.log_dec[i]
-                        wn_cpm_exact = modal_crit.wn[i] * 30 / np.pi
-                    except:
-                        # Sécurité si le solveur échoue
-                        log_dec_exact = 0.0
-                        wn_cpm_exact = wc_estime * 30 / np.pi
+           # 2. LE SECRET : Recalcul complet EXACTEMENT à la vitesse critique (N = Wn)
+           try:
+              modal_crit = rotor.run_modal(speed=wc_estime)
+              log_dec_exact = modal_crit.log_dec[i]
+              wn_cpm_exact = modal_crit.wn[i] * 30 / np.pi
+           except:
+                # Sécurité si le solveur échoue
+                log_dec_exact = 0.0
+                wn_cpm_exact = wc_estime * 30 / np.pi
                         
-                    # 3. Évaluation selon API 684
-                    if wn_cpm_exact < vmax_api:
-                        req_af = 2.5 # AF max autorisé si on traverse cette fréquence
-                    else:
-                        req_af = 0.0 # Pas de traversée, pas de contrainte AF
+                # 3. Évaluation selon API 684
+                if wn_cpm_exact < vmax_api:
+                   req_af = 2.5 # AF max autorisé si on traverse cette fréquence
+                else:
+                   req_af = 0.0 # Pas de traversée, pas de contrainte AF
                         
-                    # Calcul de l'AF (Facteur d'Amplification)
-                    af = np.pi / log_dec_exact if log_dec_exact > 0.0001 else float('inf')
+                # Calcul de l'AF (Facteur d'Amplification)
+                af = np.pi / log_dec_exact if log_dec_exact > 0.0001 else float('inf')
                     
-                    # Le mode est stable et conforme si Log Dec > 0.1
-                    status = "✅" if (log_dec_exact >= 0.1) else "❌"
+                # Le mode est stable et conforme si Log Dec > 0.1
+                status = "✅" if (log_dec_exact >= 0.1) else "❌"
                     
-                    api_data.append({
+                api_data.append({
                         "Mode": f"Mode {i+1}",
                         "Vitesse Critique (CPM)": round(wn_cpm_exact, 1),
                         "Log Dec": round(log_dec_exact, 4),
