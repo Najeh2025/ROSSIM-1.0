@@ -2115,10 +2115,9 @@ def _render_m3():
     with tab_api:
         camp = _CACHE.get("free_camp")
         if camp is None:
-            st.info("⚠️ Veuillez d'abord tracer le diagramme de Campbell (onglet 📈 Campbell) pour générer les données.")
+            st.info("⚠️ Calculez d'abord le diagramme de Campbell (onglet précédent).")
             return
             
-        # Vitesse d'analyse tirée des paramètres globaux
         st.info(f"Vérification pour la vitesse de **{op_rpm:.0f} RPM** (Zone interdite : [{zl:.0f} – {zh:.0f}] RPM)")
         
         # ==========================================
@@ -2134,28 +2133,26 @@ def _render_m3():
         else: 
             freqs_matrix = camp.freqs
             
+        # INITIALISATION DE LA LISTE (C'est ce qui manquait !)
+        results_api = []
+        mode_id = 1
         n_modes = freqs_matrix.shape[1]
         
         for mode in range(min(6, n_modes)):
             wn_mode = freqs_matrix[:, mode]        # Fréquences du mode (rad/s)
             ld_mode = camp.log_dec[:, mode]        # Amortissement du mode
             
-            # Différence entre fréquence propre et vitesse de rotation
             diff = wn_mode - speed_rad
             
-            # Recherche des points de croisement (changement de signe)
             for i in range(len(diff) - 1):
-                if diff[i] * diff[i+1] <= 0: # <= au cas où l'intersection est un point exact
-                    # 1. Interpolation linéaire de la vitesse critique exacte
+                if diff[i] * diff[i+1] <= 0:
+                    # Interpolation exacte
                     vc_rad = speed_rad[i] - diff[i] * (speed_rad[i+1] - speed_rad[i]) / (diff[i+1] - diff[i])
                     vc_rpm = vc_rad * 30 / np.pi
                     
-                    # 2. Interpolation linéaire du Log Dec à cette vitesse exacte
                     ld_exact = ld_mode[i] + (vc_rad - speed_rad[i]) * (ld_mode[i+1] - ld_mode[i]) / (speed_rad[i+1] - speed_rad[i])
+                    fn_exact = vc_rad / (2 * np.pi)
                     
-                    fn_exact = vc_rad / (2 * np.pi) # Fréquence en Hz
-                    
-                    # 3. Vérification des critères API 684
                     in_zone = zl <= vc_rpm <= zh
                     ok = not in_zone and ld_exact >= 0.1
                     
@@ -2163,18 +2160,30 @@ def _render_m3():
                         "Mode": mode_id,
                         "fn (Hz)": f"{fn_exact:.2f}",
                         "Vitesse critique (RPM)": f"{vc_rpm:.0f}",
+                        "Log Dec exact": f"{ld_exact:.4f}",
                         "Zone interdite": "❌ OUI" if in_zone else "✅ NON",
-                        "Log Dec": f"{ld_exact:.4f}",
                         "Log Dec ≥ 0.1": "✅" if ld_exact >= 0.1 else "❌",
                         "Conforme API 684": "✅" if ok else "❌"
                     })
                     mode_id += 1
 
-        # S'il n'y a pas d'intersection dans la plage étudiée
         if not results_api:
-            st.success("✅ Aucune vitesse critique (intersection 1X) n'a été détectée dans cette plage de vitesse.")
-            st.session_state["df_api"] = pd.DataFrame()
-            st.session_state["api_params"] = {"op_rpm": op_rpm, "zl": zl, "zh": zh, "score": 100}
+            st.success("✅ Aucune vitesse critique (intersection 1X) n'a été détectée dans la plage calculée.")
+            return
+
+        # --- AFFICHAGE ET SCORE ---
+        df_api = pd.DataFrame(results_api)
+        st.dataframe(df_api, use_container_width=True, hide_index=True)
+        
+        st.markdown(f"**Zone interdite API 684 :** [{zl:.0f} – {zh:.0f}] RPM")
+        n_ok = sum(1 for r in results_api if r["Conforme API 684"] == "✅")
+        score = n_ok / max(len(results_api), 1) * 100
+        color = "#22863A" if score >= 100 else "#C55A11" if score >= 67 else "#C00000"
+        
+        st.markdown(f"<h3 style='color:{color}'>Score conformité API 684 : {score:.0f}%</h3>", unsafe_allow_html=True)
+        
+        st.session_state["df_api"] = df_api
+        st.session_state["api_params"] = {"op_rpm": op_rpm, "zl": zl, "zh": zh, "score": score}
             return
 
         # --- AFFICHAGE DU TABLEAU ---
