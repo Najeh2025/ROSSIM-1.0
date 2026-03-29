@@ -2121,7 +2121,7 @@ def _render_m3():
         # Vitesse d'analyse tirée des paramètres globaux
         st.info(f"Vérification pour la vitesse de **{op_rpm:.0f} RPM** (Zone interdite : [{zl:.0f} – {zh:.0f}] RPM)")
         
-        # ==========================================
+# ==========================================
         # EXTRACTION DES VITESSES CRITIQUES (Méthode par Interpolation 1X)
         # ==========================================
         results_api = []
@@ -2129,21 +2129,29 @@ def _render_m3():
         
         # L'axe des vitesses en rad/s généré par ROSS
         speed_rad = camp.speed_range 
-        n_modes = camp.wn.shape[1]
+        
+        # 🚀 LA CORRECTION EST ICI : Détection automatique de l'attribut des fréquences
+        if hasattr(camp, 'wn'):
+            freqs_matrix = camp.wn
+        elif hasattr(camp, 'wd'):
+            freqs_matrix = camp.wd
+        else:
+            freqs_matrix = camp.freqs # Fallback de sécurité
+            
+        n_modes = freqs_matrix.shape[1]
         
         # On analyse les 6 premiers modes maximum
         for mode in range(min(6, n_modes)):
-            wn_mode = camp.wn[:, mode]        # Fréquences propres du mode (rad/s)
-            ld_mode = camp.log_dec[:, mode]   # Amortissement du mode
+            wn_mode = freqs_matrix[:, mode]        # Fréquences du mode (rad/s)
+            ld_mode = camp.log_dec[:, mode]        # Amortissement du mode
             
             # Différence entre fréquence propre et vitesse de rotation
             diff = wn_mode - speed_rad
             
             # Recherche des points de croisement (changement de signe)
             for i in range(len(diff) - 1):
-                if diff[i] * diff[i+1] < 0:
+                if diff[i] * diff[i+1] <= 0: # <= au cas où l'intersection est un point exact
                     # 1. Interpolation linéaire de la vitesse critique exacte
-                    # Formule : x = x0 - y0 * (x1 - x0) / (y1 - y0)
                     vc_rad = speed_rad[i] - diff[i] * (speed_rad[i+1] - speed_rad[i]) / (diff[i+1] - diff[i])
                     vc_rpm = vc_rad * 30 / np.pi
                     
