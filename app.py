@@ -2130,7 +2130,7 @@ def _render_m3():
         # ==========================================
         # NOUVELLE MÉTHODE D'EXTRACTION API 684
         # ==========================================
-modal_base = rotor.run_modal(speed=100 * np.pi / 30) 
+        modal_base = rotor.run_modal(speed=100 * np.pi / 30) 
         
         results_api = []
         modes_to_check = min(6, len(modal_base.wn))
