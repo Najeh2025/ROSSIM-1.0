@@ -2009,7 +2009,7 @@ def _render_m3():
             vmax = st.slider("Vitesse max (RPM)", 2000, 30000, 10000, key="m3_vmax")
         with col2:
             #npts = st.slider("Résolution (points)", 50, 200, 100, key="m3_npts")
-            npts = st.slider("Résolution (points)", 10, 100, 20, key=f"np_{sid}")
+            npts = st.slider("Résolution (points)", 10, 100, 20, key="m3_npts")
         if st.button("📈 Tracer le Campbell", type="primary", key="m3_camp"):
             with st.spinner(f"Calcul Campbell ({npts} points)..."):
                 camp = eng.run_campbell(vmax, npts)
