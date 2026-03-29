@@ -1025,42 +1025,42 @@ def render_dashboard():
 
     st.markdown("---")
     
-    # --- COMPACTAGE : TUTORIELS & EXEMPLE SUR LA MÊME LIGNE ---
-    col_prog, col_ex = st.columns([2, 1])
+    # ==========================================
+    # 1. SECTION : TUTORIELS RAPIDES (Pleine largeur)
+    # ==========================================
+    st.markdown("### 🎓 Tutoriels Rapides")
+    tut_done = st.session_state.get("tut_done", set())
+    tcols = st.columns(4) # Les 4 cartes prendront toute la largeur de l'écran
     
-    # NOUVEAU : Fonction Callback pour naviguer vers les tutoriels
-    def navigate_to_tutorial(target_tut):
-        st.session_state["nav_page"] = "🎓 Mode Pédagogique"
-        # Optionnel : Si ton mode pédagogique utilise une variable pour pré-sélectionner le tuto
-        st.session_state["tut_active"] = target_tut 
-
-    with col_prog:
-        st.markdown("### 🎓 Tutoriels Rapides")
-        tut_done = st.session_state.get("tut_done", set())
-        tcols = st.columns(4)
-        for i, (tid, tdata) in enumerate(TUTORIALS.items()):
-            done = tid in tut_done
-            with tcols[i]:
-                status = "✅" if done else "▶️"
-                card_color = "#22863A" if done else "#1F5C8B"
-                
-                # L'affichage visuel (avec un peu de marge en bas)
-                st.markdown(f"<div class='card' style='padding:10px; border-left-color:{card_color}; margin-bottom:5px;'>"
-                            f"<small>{status} <b>{tdata['level']}</b></small><br>"
-                            f"<span style='font-size:0.8em; line-height:1.2;'>{tdata['title'][:35]}</span>"
-                            f"</div>", unsafe_allow_html=True)
-                
-                # NOUVEAU : Le bouton cliquable juste en dessous
-                # Bouton "Primary" pour inviter à l'action
-                # Bouton standard (qui sera blanc/épuré pour différencier)
-                st.button(f"📖 Démarrer", key=f"btn_dash_tut_{tid}", 
-                          use_container_width=True, 
-                          on_click=navigate_to_tutorial, args=(tid,))
-                
-    with col_ex:
-        # --- NOUVEAU TITRE PLUS PROFESSIONNEL ---
-        st.markdown("### 🏭 Cas d'Étude Industriel")
-        st.info("Validation sur un système réel : chargez le modèle complet d'un compresseur centrifuge à 56 nœuds.")
+    for i, (tid, tdata) in enumerate(TUTORIALS.items()):
+        done = tid in tut_done
+        with tcols[i]:
+            status = "✅" if done else "▶️"
+            card_color = "#22863A" if done else "#1F5C8B"
+            
+            # L'affichage visuel (avec un peu de marge en bas)
+            st.markdown(f"<div class='card' style='padding:10px; border-left-color:{card_color}; margin-bottom:5px;'>"
+                        f"<small>{status} <b>{tdata['level']}</b></small><br>"
+                        f"<span style='font-size:0.8em; line-height:1.2;'>{tdata['title'][:35]}</span>"
+                        f"</div>", unsafe_allow_html=True)
+            
+            # Bouton cliquable juste en dessous
+            st.button(f"📖 Démarrer", key=f"btn_dash_tut_{tid}", 
+                      use_container_width=True, 
+                      on_click=navigate_to_tutorial, args=(tid,))
+            
+    st.markdown("<br><hr><br>", unsafe_allow_html=True) # Une belle séparation aérée
+    
+    # ==========================================
+    # 2. SECTION : CAS D'ÉTUDE (En dessous)
+    # ==========================================
+    st.markdown("### 🏭 Cas d'Étude Industriel")
+    st.info("Validation sur un système réel : chargez le modèle complet d'un compresseur centrifuge à 56 nœuds.")
+    
+    # Le bouton prendra toute la largeur ou sera bien proportionné
+    col_vide1, col_btn_comp, col_vide2 = st.columns([1, 2, 1]) # Pour centrer le gros bouton si tu le souhaites (optionnel)
+    
+    with col_btn_comp:
         if ROSS_AVAILABLE and st.button("🔌 Charger Compresseur Centrifuge", use_container_width=True, type="primary"):
             with st.spinner("Chargement..."):
                 import pandas as pd
@@ -1070,6 +1070,9 @@ def render_dashboard():
                 st.session_state["rotor"] = comp
                 st.session_state["rotor_is_compressor"] = True
                 _CACHE["free_rotor"] = comp
+                
+                # --- (N'oublie pas de garder ici la suite de ton code avec la mise à jour 
+                # de df_shaft, df_disk, df_bear que nous avons faite !) ---
                 
                 # ========================================================
                 # 2. SYNCHRONISATION DES TABLEAUX DE L'INTERFACE
