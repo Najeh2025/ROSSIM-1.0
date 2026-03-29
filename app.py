@@ -2121,24 +2121,21 @@ def _render_m3():
         # Vitesse d'analyse tirée des paramètres globaux
         st.info(f"Vérification pour la vitesse de **{op_rpm:.0f} RPM** (Zone interdite : [{zl:.0f} – {zh:.0f}] RPM)")
         
-# ==========================================
-        # EXTRACTION DES VITESSES CRITIQUES (Méthode par Interpolation 1X)
         # ==========================================
-        results_api = []
-        mode_id = 1
-        
-        # L'axe des vitesses en rad/s généré par ROSS
+        # EXTRACTION GEOMETRIQUE EXACTE (INTERSECTION 1X)
+        # ==========================================
         speed_rad = camp.speed_range 
         
-        # 🚀 LA CORRECTION EST ICI : Détection automatique de l'attribut des fréquences
         # Détection : On force la lecture de 'wd' (Fréquences AMORTIES) pour correspondre au graphe !
-        if hasattr(camp, 'wd') and camp.wd is not None: freqs = camp.wd
-        elif hasattr(camp, 'wn'): freqs = camp.wn
-        else: freqs = camp.freqs
+        if hasattr(camp, 'wd') and camp.wd is not None: 
+            freqs_matrix = camp.wd
+        elif hasattr(camp, 'wn') and camp.wn is not None: 
+            freqs_matrix = camp.wn
+        else: 
+            freqs_matrix = camp.freqs
             
         n_modes = freqs_matrix.shape[1]
         
-        # On analyse les 6 premiers modes maximum
         for mode in range(min(6, n_modes)):
             wn_mode = freqs_matrix[:, mode]        # Fréquences du mode (rad/s)
             ld_mode = camp.log_dec[:, mode]        # Amortissement du mode
