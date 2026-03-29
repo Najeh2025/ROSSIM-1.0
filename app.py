@@ -1024,7 +1024,12 @@ def render_dashboard():
                       on_click=navigate_to_module, args=(m_id,))
 
     st.markdown("---")
-    
+
+     # NOUVEAU : Fonction Callback pour naviguer vers les tutoriels
+    def navigate_to_tutorial(target_tut):
+        st.session_state["nav_page"] = "🎓 Mode Pédagogique"
+        # Optionnel : Si ton mode pédagogique utilise une variable pour pré-sélectionner le tuto
+        st.session_state["tut_active"] = target_tut 
     # ==========================================
     # 1. SECTION : TUTORIELS RAPIDES (Pleine largeur)
     # ==========================================
