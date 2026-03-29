@@ -2130,6 +2130,7 @@ def _render_m3():
         # Rappel visuel si déjà calculé
         elif _CACHE.get("free_camp") and _CACHE.get("df_campbell") is not None:
             st.info("Campbell déjà calculé — modifiez les paramètres et appuyez à nouveau pour recalculer.")
+            st.markdown(f"**🛑 Zone interdite API 684 :** [{zl:.0f} – {zh:.0f}] RPM")
             st.markdown("**⚡ Vitesses critiques exactes (intersections 1X) :**")
             st.dataframe(_CACHE["df_campbell"], use_container_width=True, hide_index=True)
 
