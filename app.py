@@ -909,7 +909,7 @@ def _plot_bode_unbal(res, probe_node, probe_dof, freq_max, modal=None):
         col1, col2, col3 = st.columns(3)
         col1.metric("Fréquence résonance", f"{f_res:.1f} Hz")
         col2.metric("Amplitude max", f"{a_max:.2f} µm")
-        col3.metric("DAF", f"{daf:.1f}")
+        col3.metric("Facteur d'Amplification Dynamique", f"{daf:.1f}")
         
     except Exception as e:
         st.error(f"Visualisation balourd impossible : {e}")
