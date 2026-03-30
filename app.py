@@ -896,8 +896,11 @@ def _plot_bode_unbal(res, probe_node, probe_dof, freq_max, modal=None):
         idx_max = int(np.argmax(amps_um))
         a_max = amps_um[idx_max]
         f_res = freqs[idx_max]
-        a_stat = amps_um[1] if len(amps_um) > 1 and amps_um[1] > 0 else 1e-12
-        daf = a_max / a_stat
+        
+        # meilleure estimation statique
+        a_stat = np.mean(amps_um[:5]) if len(amps_um) >= 5 else amps_um[0]
+        
+        daf = a_max / max(a_stat, 1e-12)
         
         fig.update_xaxes(title_text="Fréquence (Hz)", row=2, col=1)
         fig.update_yaxes(title_text="µm", row=1, col=1)
